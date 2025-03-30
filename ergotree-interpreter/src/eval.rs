@@ -1,8 +1,9 @@
 //! Interpreter
+use alloc::rc::Rc;
+use alloc::string::{String, ToString};
+use core::fmt::Display;
 use ergotree_ir::mir::constant::TryExtractInto;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProp;
-use std::fmt::Display;
-use std::rc::Rc;
 
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
@@ -30,7 +31,7 @@ pub struct ReductionDiagnosticInfo {
 }
 
 impl Display for ReductionDiagnosticInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         if let Some(expr_str) = &self.pretty_printed_expr {
             writeln!(f, "Pretty printed expr:\n{}", expr_str)?;
         }
@@ -130,10 +131,8 @@ pub(crate) trait Evaluable {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::todo)]
+#[allow(dead_code)]
 pub(crate) mod tests {
-
-    #![allow(dead_code)]
-
     use super::*;
     use ergotree_ir::mir::constant::TryExtractFrom;
     use ergotree_ir::mir::constant::TryExtractInto;

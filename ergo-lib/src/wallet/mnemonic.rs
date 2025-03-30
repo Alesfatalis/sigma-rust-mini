@@ -1,9 +1,10 @@
 //! Mnemonic operations according to BIP32/BIP39
 
+extern crate unicode_normalization;
+use alloc::string::String;
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use sha2::Sha512;
-extern crate unicode_normalization;
 use unicode_normalization::UnicodeNormalization;
 
 /// Length of mnemonic seed in bytes

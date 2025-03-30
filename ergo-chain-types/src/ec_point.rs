@@ -1,13 +1,14 @@
 //! Elliptic curve point.
 
+use alloc::string::String;
+use core::convert::TryFrom;
+use core::ops::{Add, Mul, Neg};
 use derive_more::{From, Into};
 use k256::elliptic_curve::group::prime::PrimeCurveAffine;
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use k256::{ProjectivePoint, PublicKey, Scalar};
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
 use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
-use std::convert::TryFrom;
-use std::ops::{Add, Mul, Neg};
 
 /// Elliptic curve point
 #[derive(PartialEq, Clone, Default, From, Into)]
@@ -19,8 +20,8 @@ use std::ops::{Add, Mul, Neg};
 pub struct EcPoint(ProjectivePoint);
 
 #[allow(clippy::unwrap_used)]
-impl std::fmt::Debug for EcPoint {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for EcPoint {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.write_str("EC:")?;
         f.write_str(&base16::encode_lower(
             &self.scorex_serialize_bytes().unwrap(),
@@ -29,8 +30,8 @@ impl std::fmt::Debug for EcPoint {
 }
 
 #[allow(clippy::unwrap_used)]
-impl std::fmt::Display for EcPoint {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Display for EcPoint {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.write_str(&base16::encode_lower(
             &self.scorex_serialize_bytes().unwrap(),
         ))
@@ -166,6 +167,7 @@ mod arbitrary {
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[cfg(feature = "arbitrary")]
 #[allow(clippy::panic)]
 mod tests {
     use super::*;

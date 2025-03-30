@@ -1,5 +1,7 @@
 //! Hash functions
 
+use alloc::boxed::Box;
+
 /// Blake2b256 hash (256 bit)
 pub fn blake2b256_hash(bytes: &[u8]) -> Box<[u8; 32]> {
     use blake2::digest::typenum::U32;

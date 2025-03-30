@@ -1,4 +1,4 @@
-//! multi sig prove crate::chain::ergo_state_context::ErgoStateContext;
+//! multi sig prover
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::Transaction;
@@ -19,114 +19,15 @@ use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use crate::ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::wallet::signing::{make_context, TransactionContext, TxSigningError};
+use alloc::rc::Rc;
+use alloc::vec::Vec;
 use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
 use ergotree_interpreter::sigma_protocol::unchecked_tree::UncheckedTree;
 use ergotree_interpreter::sigma_protocol::verifier::compute_commitments;
-use std::collections::HashMap;
-use std::rc::Rc;
 
 use super::tx_context::TransactionContextError;
 
-/// TransactionHintsBag
-#[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(
-    feature = "json",
-    serde(
-        try_from = "crate::chain::json::hint::TransactionHintsBagJson",
-        into = "crate::chain::json::hint::TransactionHintsBagJson"
-    )
-)]
-#[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
-#[derive(PartialEq, Debug, Clone)]
-pub struct TransactionHintsBag {
-    #[cfg_attr(
-        feature = "arbitrary",
-        proptest(
-            strategy = "proptest::collection::hash_map(proptest::prelude::any::<usize>(), proptest::prelude::any::<HintsBag>(), 0..5)"
-        )
-    )]
-    pub(crate) secret_hints: HashMap<usize, HintsBag>,
-    #[cfg_attr(
-        feature = "arbitrary",
-        proptest(
-            strategy = "proptest::collection::hash_map(proptest::prelude::any::<usize>(), proptest::prelude::any::<HintsBag>(), 0..5)"
-        )
-    )]
-    pub(crate) public_hints: HashMap<usize, HintsBag>,
-}
-
-impl TransactionHintsBag {
-    /// Empty TransactionHintsBag
-    pub fn empty() -> Self {
-        TransactionHintsBag {
-            secret_hints: HashMap::new(),
-            public_hints: HashMap::new(),
-        }
-    }
-
-    /// Replacing Hints for an input index
-    pub fn replace_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
-        let public: Vec<Hint> = hints_bag
-            .hints
-            .clone()
-            .into_iter()
-            .filter(|hint| matches!(hint, Hint::CommitmentHint(_)))
-            .collect();
-        let secret: Vec<Hint> = hints_bag
-            .hints
-            .into_iter()
-            .filter(|hint| matches!(hint, Hint::SecretProven(_)))
-            .collect();
-
-        self.secret_hints.insert(index, HintsBag { hints: secret });
-        self.public_hints.insert(index, HintsBag { hints: public });
-    }
-
-    /// Adding hints for a input index
-    pub fn add_hints_for_input(&mut self, index: usize, hints_bag: HintsBag) {
-        let mut public: Vec<Hint> = hints_bag
-            .hints
-            .clone()
-            .into_iter()
-            .filter(|hint| matches!(hint, Hint::CommitmentHint(_)))
-            .collect();
-        let mut secret: Vec<Hint> = hints_bag
-            .hints
-            .into_iter()
-            .filter(|hint| matches!(hint, Hint::SecretProven(_)))
-            .collect();
-        let secret_bag = HintsBag::empty();
-        let public_bag = HintsBag::empty();
-        let old_secret: &Vec<Hint> = &self.secret_hints.get(&index).unwrap_or(&secret_bag).hints;
-        for hint in old_secret {
-            secret.push(hint.clone());
-        }
-
-        let old_public: &Vec<Hint> = &self.public_hints.get(&index).unwrap_or(&public_bag).hints;
-        for hint in old_public {
-            public.push(hint.clone());
-        }
-        self.secret_hints.insert(index, HintsBag { hints: secret });
-        self.public_hints.insert(index, HintsBag { hints: public });
-    }
-
-    /// Outputting HintsBag corresponding for an index
-    pub fn all_hints_for_input(&self, index: usize) -> HintsBag {
-        let mut hints: Vec<Hint> = Vec::new();
-        let secret_bag = HintsBag::empty();
-        let public_bag = HintsBag::empty();
-        let secrets: &Vec<Hint> = &self.secret_hints.get(&index).unwrap_or(&secret_bag).hints;
-        for hint in secrets {
-            hints.push(hint.clone());
-        }
-        let public: &Vec<Hint> = &self.public_hints.get(&index).unwrap_or(&public_bag).hints;
-        for hint in public {
-            hints.push(hint.clone());
-        }
-        let hints_bag: HintsBag = HintsBag { hints };
-        hints_bag
-    }
-}
+use super::TransactionHintsBag;
 
 /// A method which is extracting partial proofs of secret knowledge for particular secrets with their
 /// respective public images given. Useful for distributed signature applications.
@@ -397,12 +298,12 @@ mod tests {
     use crate::ergotree_ir::ergo_tree::ErgoTree;
     use crate::ergotree_ir::serialization::SigmaSerializable;
     use crate::ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
+    use alloc::rc::Rc;
+    use core::convert::{TryFrom, TryInto};
     use ergo_chain_types::Base16DecodedBytes;
     use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
     use ergotree_interpreter::sigma_protocol::wscalar::Wscalar;
     use sigma_test_util::force_any_val;
-    use std::convert::{TryFrom, TryInto};
-    use std::rc::Rc;
 
     #[test]
     #[ignore]

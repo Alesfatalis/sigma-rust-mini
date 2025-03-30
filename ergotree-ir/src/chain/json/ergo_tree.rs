@@ -2,6 +2,7 @@
 
 use crate::ergo_tree::ErgoTree;
 use crate::serialization::SigmaSerializable;
+use alloc::string::{String, ToString};
 use serde::{Deserialize, Deserializer, Serializer};
 
 use super::serialize_bytes;

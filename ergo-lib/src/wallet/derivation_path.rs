@@ -2,8 +2,15 @@
 //! BIP-44 <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>
 //! and EIP-3 <https://github.com/ergoplatform/eips/blob/master/eip-0003.md>
 
+use ::alloc::boxed::Box;
+use alloc::collections::VecDeque;
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::fmt;
+use core::num::ParseIntError;
+use core::str::FromStr;
 use derive_more::From;
-use std::{collections::VecDeque, fmt, num::ParseIntError, str::FromStr};
 use thiserror::Error;
 
 /// Index for hardened derivation

@@ -1,6 +1,6 @@
 //! Serialization of proof tree signatures
 
-use std::convert::TryInto;
+use core::convert::TryInto;
 
 use super::gf2_192::gf2_192poly_from_byte_array;
 use super::prover::ProofBytes;
@@ -16,6 +16,8 @@ use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::GroupSizedBytes;
 use crate::sigma_protocol::UncheckedSchnorr;
 
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use ergotree_ir::serialization::sigma_byte_reader;
 use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
 use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
@@ -46,7 +48,7 @@ fn sig_write_bytes<W: SigmaByteWrite>(
     node: &UncheckedTree,
     w: &mut W,
     write_challenges: bool,
-) -> Result<(), std::io::Error> {
+) -> Result<(), core2::io::Error> {
     if write_challenges {
         node.challenge().sigma_serialize(w)?;
     }

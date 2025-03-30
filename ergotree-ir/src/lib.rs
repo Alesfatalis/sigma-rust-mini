@@ -1,5 +1,6 @@
 //! ErgoTree, MIR (Middle-level Internal Representation)
 
+#![cfg_attr(not(feature = "std"), no_std)]
 // Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
@@ -19,6 +20,9 @@
 #![deny(clippy::unreachable)]
 #![deny(clippy::panic)]
 
+#[macro_use]
+extern crate alloc;
+
 mod has_opcode;
 
 pub mod base16_str;
@@ -31,4 +35,3 @@ pub mod serialization;
 pub mod sigma_protocol;
 pub mod source_span;
 pub mod types;
-pub mod util;

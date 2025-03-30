@@ -1,5 +1,6 @@
 //! Unchecked proof tree types
 
+use alloc::vec::Vec;
 use ergo_chain_types::Base16EncodedBytes;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
@@ -332,7 +333,7 @@ impl ProofTreeConjecture for UncheckedConjecture {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 mod arbitrary {
-    use std::convert::TryInto;
+    use core::convert::TryInto;
 
     use crate::sigma_protocol::gf2_192::gf2_192poly_from_byte_array;
 

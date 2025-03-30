@@ -1,17 +1,25 @@
 //! ContextExtension type
-use ergotree_ir::mir::constant::Constant;
-use ergotree_ir::serialization::sigma_byte_reader::SigmaByteRead;
-use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWrite;
-use ergotree_ir::serialization::SigmaParsingError;
-use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::serialization::SigmaSerializeResult;
-use indexmap::IndexMap;
-use std::convert::TryFrom;
-use std::fmt;
+use crate::mir::constant::Constant;
+use crate::serialization::sigma_byte_reader::SigmaByteRead;
+use crate::serialization::sigma_byte_writer::SigmaByteWrite;
+use crate::serialization::SigmaParsingError;
+use crate::serialization::SigmaSerializable;
+use crate::serialization::SigmaSerializeResult;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::fmt;
 use thiserror::Error;
+
+use super::IndexMap;
 
 /// User-defined variables to be put into context
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(
+    feature = "json",
+    derive(serde::Deserialize),
+    serde(try_from = "IndexMap<String, String>")
+)]
 pub struct ContextExtension {
     /// key-value pairs of variable id and it's value
     pub values: IndexMap<u8, Constant>,
@@ -21,7 +29,7 @@ impl ContextExtension {
     /// Returns an empty ContextExtension
     pub fn empty() -> Self {
         Self {
-            values: IndexMap::new(),
+            values: IndexMap::with_hasher(Default::default()),
         }
     }
 }
@@ -45,7 +53,8 @@ impl SigmaSerializable for ContextExtension {
 
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
         let values_count = r.get_u8()?;
-        let mut values: IndexMap<u8, Constant> = IndexMap::with_capacity(values_count as usize);
+        let mut values: IndexMap<u8, Constant> =
+            IndexMap::with_capacity_and_hasher(values_count as usize, Default::default());
         for _ in 0..values_count {
             let idx = r.get_u8()?;
             values.insert(idx, Constant::sigma_parse(r)?);
@@ -64,7 +73,7 @@ impl TryFrom<IndexMap<String, String>> for ContextExtension {
     type Error = ConstantParsingError;
     fn try_from(values_str: IndexMap<String, String>) -> Result<Self, Self::Error> {
         let values = values_str.iter().try_fold(
-            IndexMap::with_capacity(values_str.len()),
+            IndexMap::with_capacity_and_hasher(values_str.len(), Default::default()),
             |mut acc, pair| {
                 let idx: u8 = pair.0.parse().map_err(|_| {
                     ConstantParsingError(format!("cannot parse index from {0:?}", pair.0))
@@ -91,6 +100,25 @@ impl TryFrom<IndexMap<String, String>> for ContextExtension {
     }
 }
 
+#[cfg(feature = "json")]
+impl serde::Serialize for ContextExtension {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(self.values.len()))?;
+        for (k, v) in &self.values {
+            map.serialize_entry(
+                &format!("{}", k),
+                &base16::encode_lower(&v.sigma_serialize_bytes().map_err(Error::custom)?),
+            )?;
+        }
+        map.end()
+    }
+}
+
 #[cfg(feature = "arbitrary")]
 mod arbitrary {
     use super::*;
@@ -98,8 +126,6 @@ mod arbitrary {
 
     impl Arbitrary for ContextExtension {
         type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             vec(any::<Constant>(), 0..10)
                 .prop_map(|constants| {
@@ -112,6 +138,8 @@ mod arbitrary {
                 })
                 .boxed()
         }
+
+        type Strategy = BoxedStrategy<Self>;
     }
 }
 
@@ -120,7 +148,7 @@ mod arbitrary {
 #[allow(clippy::panic)]
 mod tests {
     use super::*;
-    use ergotree_ir::serialization::sigma_serialize_roundtrip;
+    use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;
 
     proptest! {

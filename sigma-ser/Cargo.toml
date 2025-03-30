@@ -7,15 +7,16 @@ repository.workspace = true
 edition.workspace = true
 description = "Ergo binary serialization primitives"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
+[features]
+default = ["std"]
+std = ["core2/std"]
 
 [dependencies]
 thiserror = { workspace = true }
 bitvec = { workspace = true }
 bounded-vec = { workspace = true }
+core2 = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
-proptest-derive = { workspace = true }
 derive_more = { workspace = true }

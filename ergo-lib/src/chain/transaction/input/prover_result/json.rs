@@ -1,7 +1,8 @@
-use std::str::FromStr;
+use core::str::FromStr;
 
-use crate::chain::json::context_extension::ContextExtensionSerde;
-use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
+use alloc::string::String;
+use alloc::vec::Vec;
+use ergotree_ir::chain::context_extension::ContextExtension;
 use serde::ser::SerializeStruct;
 use serde::Serialize;
 
@@ -14,10 +15,7 @@ impl Serialize for ProverResult {
     {
         let mut s = serializer.serialize_struct("ProverResult", 2)?;
         s.serialize_field("proofBytes", &String::from(self.proof.clone()))?;
-        s.serialize_field(
-            "extension",
-            &ContextExtensionSerde::from(self.extension.clone()),
-        )?;
+        s.serialize_field("extension", &self.extension)?;
         s.end()
     }
 }

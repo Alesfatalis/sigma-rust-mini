@@ -1,6 +1,7 @@
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use core::convert::TryFrom;
+use core::convert::TryInto;
 
+use alloc::vec::Vec;
 use bounded_vec::BoundedVecOutOfBounds;
 use ergo_chain_types::EcPoint;
 use serde::Deserialize;

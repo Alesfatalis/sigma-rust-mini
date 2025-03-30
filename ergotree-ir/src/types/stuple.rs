@@ -1,6 +1,8 @@
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use core::convert::TryFrom;
+use core::convert::TryInto;
 
+use alloc::vec;
+use alloc::vec::Vec;
 use bounded_vec::BoundedVec;
 use bounded_vec::BoundedVecOutOfBounds;
 
@@ -26,14 +28,14 @@ pub struct STuple {
     pub items: TupleItems<SType>,
 }
 
-impl std::fmt::Debug for STuple {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for STuple {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.items.clone().to_vec().fmt(f)
     }
 }
 
-impl std::fmt::Display for STuple {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for STuple {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "(")?;
         for (i, item) in self.items.iter().enumerate() {
             if i > 0 {

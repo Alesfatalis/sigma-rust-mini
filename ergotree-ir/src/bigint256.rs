@@ -1,140 +1,147 @@
 //! 256-bit signed integer type
 
-use std::convert::TryFrom;
-use std::fmt;
-use std::ops::{Add, BitAnd, BitOr, BitXor, Deref, Div, Mul, Neg, Not, Rem, Sub};
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::ops::{Div, Mul, Neg, Rem};
 
-use num256::int256::Int256;
+use bnum::cast::As;
+use bnum::types::I256;
+use bnum::BUintD8;
+use derive_more::From;
+use derive_more::{Add, AddAssign, BitAnd, BitOr, BitXor, Display, Div, FromStr, Mul, Not, Sub};
 use num_bigint::BigInt;
-use num_bigint::BigUint;
-use num_bigint::ToBigInt;
-use num_derive::{One, Zero};
-use num_integer::Integer;
+use num_derive::{Num, One, Signed, Zero};
 use num_traits::{
-    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedRem, CheckedSub, Num, Zero,
+    Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedRem, CheckedSub, Signed,
+    ToPrimitive,
 };
 
+use crate::serialization::{SigmaParsingError, SigmaSerializable};
+
 /// 256-bit signed integer type
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Zero, One)]
-pub struct BigInt256(Int256);
+#[derive(
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
+    Display,
+    From,
+    FromStr,
+    Copy,
+    Clone,
+    Zero,
+    One,
+    Num,
+    Not,
+    Add,
+    AddAssign,
+    Sub,
+    Mul,
+    Div,
+    BitAnd,
+    BitOr,
+    BitXor,
+    Signed,
+)]
+pub struct BigInt256(pub(crate) bnum::types::I256);
+
+impl BigInt256 {
+    /// Create a BigInt256 from a slice of bytes in big-endian format. Returns None if slice.len() > 32 || slice.len() == 0
+    pub fn from_be_slice(slice: &[u8]) -> Option<Self> {
+        // match scala implementation which returns exception with empty byte array, whereas bnum returns 0
+        if slice.is_empty() {
+            return None;
+        }
+        I256::from_be_slice(slice).map(Self)
+    }
+
+    /// Return bytes of integer in big-endian order
+    pub fn to_be_bytes(&self) -> [u8; 32] {
+        *self
+            .0
+            .as_::<BUintD8<{ I256::BYTES as usize }>>()
+            .to_be()
+            .digits()
+    }
+
+    /// Convert BigInt256 to minimum number of bytes to represent it
+    /// # Example
+    /// ```
+    /// # use ergotree_ir::bigint256::BigInt256;
+    /// use num_traits::Num;
+    ///
+    /// let num = BigInt256::from_str_radix("ff", 16).unwrap();
+    /// let num_bytes = num.to_be_vec();
+    /// assert_eq!(num_bytes, vec![0x00, 0xff]);
+    /// assert_eq!(num, BigInt256::from_be_slice(&num_bytes).unwrap());
+    ///
+    /// let neg = BigInt256::from_str_radix("-1", 16).unwrap();
+    /// let neg_bytes = neg.to_be_vec();
+    /// assert_eq!(neg_bytes, vec![0xff]);
+    /// assert_eq!(neg, BigInt256::from_be_slice(&neg_bytes).unwrap());
+    /// ```
+    pub fn to_be_vec(&self) -> Vec<u8> {
+        let mut bytes = self.0.to_radix_be(256);
+        if self.0.is_negative() {
+            // drain leading ones
+            let leading_bytes = (self.0.leading_ones().saturating_sub(1)) / 8;
+            bytes.drain(0..leading_bytes as usize);
+        } else if bytes[0] & 0x80 != 0 {
+            // If number has a leading 1, pad it with zeroes to avoid it being misinterpreted as negative by from_be_slice
+            bytes.insert(0, 0);
+        }
+        bytes
+    }
+}
 
 impl TryFrom<BigInt> for BigInt256 {
     type Error = String;
 
     fn try_from(value: BigInt) -> Result<Self, Self::Error> {
-        if value < Self::min_value().0 .0 {
-            Err(format!("BigInt256: Value {} is smaller than -2^255", value))
-        } else if value > Self::max_value().0 .0 {
-            Err(format!(
-                "BigInt256: Value {} is larger than 2^255 - 1",
-                value
-            ))
-        } else {
-            Ok(Self(Int256(value)))
-        }
-    }
-}
-
-impl TryFrom<BigUint> for BigInt256 {
-    type Error = String;
-
-    fn try_from(value: BigUint) -> Result<Self, Self::Error> {
-        #[allow(clippy::unwrap_used)]
-        if value > Self::max_value().0 .0.to_biguint().unwrap() {
-            Err(format!(
-                "BigInt256: Value {} is larger than 2^255 - 1",
-                value
-            ))
-        } else {
-            Ok(Self(Int256(value.to_bigint().unwrap())))
-        }
-    }
-}
-
-impl TryFrom<&[u8]> for BigInt256 {
-    type Error = String;
-
-    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        let n = BigInt::from_signed_bytes_be(value);
-        Self::try_from(n)
-    }
-}
-
-impl From<i8> for BigInt256 {
-    fn from(value: i8) -> Self {
-        Self(Int256::from(value))
-    }
-}
-
-impl From<i16> for BigInt256 {
-    fn from(value: i16) -> Self {
-        Self(Int256::from(value))
-    }
-}
-
-impl From<i32> for BigInt256 {
-    fn from(value: i32) -> Self {
-        Self(Int256::from(value))
-    }
-}
-
-impl From<i64> for BigInt256 {
-    fn from(value: i64) -> Self {
-        Self(Int256::from(value))
+        let bytes = value.to_signed_bytes_be();
+        Self::from_be_slice(&bytes).ok_or_else(|| "BigInt256 value: {value} out of bounds".into())
     }
 }
 
 impl From<BigInt256> for BigInt {
     fn from(value: BigInt256) -> Self {
-        let Int256(bi) = value.0;
-        bi
+        BigInt::from_signed_bytes_be(&value.to_be_bytes())
     }
 }
 
-impl Deref for BigInt256 {
-    type Target = Int256;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl From<i8> for BigInt256 {
+    fn from(value: i8) -> Self {
+        Self(I256::from(value))
     }
 }
 
-impl Num for BigInt256 {
-    type FromStrRadixErr = String;
+impl From<i16> for BigInt256 {
+    fn from(value: i16) -> Self {
+        Self(I256::from(value))
+    }
+}
 
-    // Don't use Int256::from_str_radix because of this issue:
-    // https://github.com/althea-net/num256_rs/issues/16
-    fn from_str_radix(s: &str, radix: u32) -> Result<Self, Self::FromStrRadixErr> {
-        match BigInt::from_str_radix(s, radix) {
-            Ok(n) => Self::try_from(n),
-            Err(e) => Err(e.to_string()),
-        }
+impl From<i32> for BigInt256 {
+    fn from(value: i32) -> Self {
+        Self(I256::from(value))
+    }
+}
+
+impl From<i64> for BigInt256 {
+    fn from(value: i64) -> Self {
+        Self(I256::from(value))
     }
 }
 
 impl Bounded for BigInt256 {
     fn min_value() -> Self {
-        Self(Int256::min_value())
+        Self(I256::min_value())
     }
 
     fn max_value() -> Self {
-        Self(Int256::max_value())
-    }
-}
-
-impl Add for BigInt256 {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        BigInt256(self.0 + rhs.0)
-    }
-}
-
-impl Sub for BigInt256 {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        BigInt256(self.0 - rhs.0)
+        Self(I256::max_value())
     }
 }
 
@@ -170,45 +177,37 @@ impl Neg for BigInt256 {
     }
 }
 
-impl Not for BigInt256 {
-    type Output = Self;
-
-    fn not(self) -> Self::Output {
-        // Int256 currently doesn't have an impl for Not
-        BigInt256(Int256(!self.0 .0))
-    }
-}
-
 impl CheckedAdd for BigInt256 {
     fn checked_add(&self, v: &Self) -> Option<Self> {
-        Some(BigInt256(self.0.checked_add(&v.0)?))
+        Some(BigInt256(self.0.checked_add(v.0)?))
     }
 }
 
 impl CheckedSub for BigInt256 {
     fn checked_sub(&self, v: &Self) -> Option<Self> {
-        Some(BigInt256(self.0.checked_sub(&v.0)?))
+        Some(BigInt256(self.0.checked_sub(v.0)?))
     }
 }
 
 impl CheckedMul for BigInt256 {
     fn checked_mul(&self, v: &Self) -> Option<Self> {
-        Some(BigInt256(self.0.checked_mul(&v.0)?))
+        Some(BigInt256(self.0.checked_mul(v.0)?))
     }
 }
 
 impl CheckedDiv for BigInt256 {
     fn checked_div(&self, v: &Self) -> Option<Self> {
-        Some(BigInt256(self.0.checked_div(&v.0)?))
+        Some(BigInt256(self.0.checked_div(v.0)?))
     }
 }
 
 impl CheckedRem for BigInt256 {
     fn checked_rem(&self, v: &Self) -> Option<Self> {
-        if v.0 .0 <= BigInt::zero() {
+        // Scala BigInt does not allow modulo operations with negative divisors
+        if v.is_negative() {
             return None;
         }
-        Some(BigInt256(Int256(self.0 .0.mod_floor(&v.0 .0))))
+        self.0.checked_rem(v.0).map(Self)
     }
 }
 
@@ -217,62 +216,70 @@ impl CheckedNeg for BigInt256 {
         if self == &BigInt256::min_value() {
             None
         } else {
-            Some(-self.clone())
+            Some(-*self)
         }
     }
 }
 
-impl BitAnd for BigInt256 {
-    type Output = Self;
+impl ToPrimitive for BigInt256 {
+    fn to_i64(&self) -> Option<i64> {
+        self.0.to_i64()
+    }
 
-    fn bitand(self, rhs: Self) -> Self::Output {
-        BigInt256(Int256(self.0 .0 & rhs.0 .0))
+    fn to_u64(&self) -> Option<u64> {
+        self.0.to_u64()
     }
 }
 
-impl<'a> BitAnd<&'a BigInt256> for &'a BigInt256 {
-    type Output = BigInt256;
+impl SigmaSerializable for BigInt256 {
+    fn sigma_serialize<W: crate::serialization::sigma_byte_writer::SigmaByteWrite>(
+        &self,
+        w: &mut W,
+    ) -> crate::serialization::SigmaSerializeResult {
+        let bytes = self.to_be_vec();
+        w.put_u16(bytes.len() as u16)?;
+        w.write_all(&bytes)?;
+        Ok(())
+    }
 
-    fn bitand(self, rhs: &BigInt256) -> Self::Output {
-        BigInt256(Int256(&self.0 .0 & &rhs.0 .0))
+    fn sigma_parse<R: crate::serialization::sigma_byte_reader::SigmaByteRead>(
+        r: &mut R,
+    ) -> Result<Self, crate::serialization::SigmaParsingError> {
+        let size = r.get_u16()?;
+        if size > 32 {
+            return Err(SigmaParsingError::ValueOutOfBounds(format!(
+                "serialized BigInt size {0} bytes exceeds 32",
+                size
+            )));
+        }
+        let mut buf = vec![0u8; size as usize];
+        r.read_exact(&mut buf)?;
+        match BigInt256::from_be_slice(&buf) {
+            Some(x) => Ok(x),
+            None => Err(SigmaParsingError::ValueOutOfBounds(String::new())),
+        }
     }
 }
 
-impl BitOr for BigInt256 {
-    type Output = Self;
+#[cfg(feature = "arbitrary")]
+mod arbitrary {
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
 
-    fn bitor(self, rhs: Self) -> Self::Output {
-        BigInt256(Int256(self.0 .0 | rhs.0 .0))
-    }
-}
+    use super::BigInt256;
 
-impl<'a> BitOr<&'a BigInt256> for &'a BigInt256 {
-    type Output = BigInt256;
+    impl Arbitrary for BigInt256 {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
 
-    fn bitor(self, rhs: &BigInt256) -> Self::Output {
-        BigInt256(Int256(&self.0 .0 | &rhs.0 .0))
-    }
-}
-
-impl BitXor for BigInt256 {
-    type Output = Self;
-
-    fn bitxor(self, rhs: Self) -> Self::Output {
-        BigInt256(Int256(self.0 .0 ^ rhs.0 .0))
-    }
-}
-
-impl<'a> BitXor<&'a BigInt256> for &'a BigInt256 {
-    type Output = BigInt256;
-
-    fn bitxor(self, rhs: &BigInt256) -> Self::Output {
-        BigInt256(Int256(&self.0 .0 ^ &rhs.0 .0))
-    }
-}
-
-impl fmt::Display for BigInt256 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self.to_str_radix(10))
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            #[allow(clippy::unwrap_used)]
+            any::<[u8; 32]>()
+                .prop_map(|bytes| Self::from_be_slice(&bytes[..]).unwrap())
+                .boxed()
+        }
     }
 }
 
@@ -280,6 +287,29 @@ impl fmt::Display for BigInt256 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use num_traits::Num;
+    #[cfg(feature = "arbitrary")]
+    use proptest::{prelude::*, proptest};
+
+    #[cfg(feature = "arbitrary")]
+    proptest! {
+        #[test]
+        fn roundtrip(b in any::<BigInt256>()) {
+            let serialized = b.to_be_vec();
+            assert_eq!(b, BigInt256::from_be_slice(&serialized).unwrap());
+        }
+        #[test]
+        fn bigint_roundtrip(b in any::<BigInt256>()) {
+            let bigint: BigInt = b.into();
+            assert_eq!(b, bigint.try_into().unwrap());
+        }
+        #[test]
+        fn upcast(l in any::<i64>()) {
+            let bytes = l.to_be_bytes();
+            let upcast = BigInt256::from(l);
+            assert_eq!(upcast, BigInt256::from_be_slice(&bytes).unwrap());
+        }
+    }
 
     #[test]
     fn min_value() {
@@ -291,13 +321,13 @@ mod tests {
 
         let mut bytes = [0x00_u8; 32];
         bytes[0] = 0x80;
-        let bigint_from_bytes = BigInt256::try_from(&bytes[..]);
+        let bigint_from_bytes = BigInt256::from_be_slice(&bytes[..]);
         assert_eq!(BigInt256::min_value(), bigint_from_bytes.unwrap());
 
         let mut bytes = [0x00_u8; 33];
         bytes[0] = 0xff;
         bytes[1] = 0x80;
-        let bigint_from_bytes = BigInt256::try_from(&bytes[..]);
+        let bigint_from_bytes = BigInt256::from_be_slice(&bytes[..]);
         assert_eq!(BigInt256::min_value(), bigint_from_bytes.unwrap());
     }
 
@@ -311,13 +341,13 @@ mod tests {
 
         let mut bytes = [0xff_u8; 32];
         bytes[0] = 0x7f;
-        let bigint_from_bytes = BigInt256::try_from(&bytes[..]);
+        let bigint_from_bytes = BigInt256::from_be_slice(&bytes[..]);
         assert_eq!(BigInt256::max_value(), bigint_from_bytes.unwrap());
 
         let mut bytes = [0xff_u8; 33];
         bytes[0] = 0x00;
         bytes[1] = 0x7f;
-        let bigint_from_bytes = BigInt256::try_from(&bytes[..]);
+        let bigint_from_bytes = BigInt256::from_be_slice(&bytes[..]);
         assert_eq!(BigInt256::max_value(), bigint_from_bytes.unwrap());
     }
 
@@ -333,8 +363,8 @@ mod tests {
         let mut bytes = [0xff_u8; 33];
         bytes[0] = 0xff;
         bytes[1] = 0x7f;
-        let bigint_from_bytes = BigInt256::try_from(&bytes[..]);
-        assert!(bigint_from_bytes.is_err());
+        let bigint_from_bytes = BigInt256::from_be_slice(&bytes[..]);
+        assert!(bigint_from_bytes.is_none());
 
         // Upper bound
         let bigint_from_str = BigInt256::from_str_radix(
@@ -346,7 +376,7 @@ mod tests {
         let mut bytes = [0x00_u8; 33];
         bytes[0] = 0x00;
         bytes[1] = 0x80;
-        let bigint_from_bytes = BigInt256::try_from(&bytes[..]);
-        assert!(bigint_from_bytes.is_err());
+        let bigint_from_bytes = BigInt256::from_be_slice(&bytes[..]);
+        assert!(bigint_from_bytes.is_none());
     }
 }

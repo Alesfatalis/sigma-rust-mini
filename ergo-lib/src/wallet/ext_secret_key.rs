@@ -1,5 +1,5 @@
 //! Extended private key operations according to BIP-32
-use std::convert::TryInto;
+use core::convert::TryInto;
 
 use super::{
     derivation_path::{ChildIndex, ChildIndexError, DerivationPath},
@@ -8,6 +8,7 @@ use super::{
     secret_key::SecretKey,
 };
 use crate::ArrLength;
+use alloc::{string::String, vec::Vec};
 use ergotree_interpreter::sigma_protocol::{private_input::DlogProverInput, wscalar::Wscalar};
 use ergotree_ir::{
     serialization::{SigmaParsingError, SigmaSerializable, SigmaSerializationError},

@@ -1,6 +1,9 @@
 //! THRESHOLD conjunction for sigma proposition
 
-use std::convert::TryInto;
+use core::convert::TryInto;
+
+use alloc::string::ToString;
+use alloc::vec::Vec;
 
 use super::cand::Cand;
 use super::cor::Cor;
@@ -81,8 +84,8 @@ impl Cthreshold {
     }
 }
 
-impl std::fmt::Display for Cthreshold {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Cthreshold {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("atLeast(")?;
         f.write_str(self.k.to_string().as_str())?;
         f.write_str(", (")?;

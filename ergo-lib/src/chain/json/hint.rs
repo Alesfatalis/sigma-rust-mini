@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use alloc::vec::Vec;
+use hashbrown::HashMap;
 
 use ergotree_interpreter::sigma_protocol::prover::hint::{Hint, HintsBag};
 use serde::{Deserialize, Serialize};
 
-use crate::wallet::multi_sig::TransactionHintsBag;
+use crate::wallet::TransactionHintsBag;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct TransactionHintsBagJson {
@@ -50,8 +51,9 @@ impl From<TransactionHintsBagJson> for TransactionHintsBag {
 }
 
 #[cfg(test)]
+#[cfg(feature = "arbitrary")]
 mod tests {
-    use crate::wallet::multi_sig::TransactionHintsBag;
+    use crate::wallet::TransactionHintsBag;
     use proptest::prelude::*;
 
     proptest! {

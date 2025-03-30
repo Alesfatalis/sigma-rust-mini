@@ -1,3 +1,6 @@
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
 use derive_more::From;
 use thiserror::Error;
 

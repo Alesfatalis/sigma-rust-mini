@@ -24,6 +24,7 @@
 //!
 //!  For more information, please refer to <http://unlicense.org>
 
+use alloc::vec::Vec;
 use thiserror::Error;
 
 use crate::{gf2_192::Gf2_192, Gf2_192Error};
@@ -129,7 +130,7 @@ impl Gf2_192Poly {
     /// NOT including the degree-zero coefficient. Each coefficient takes 24 bytes for a total of
     /// `self.degree * 24` bytes
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut res: Vec<_> = std::iter::repeat(0).take(self.degree * 24).collect();
+        let mut res: Vec<_> = core::iter::repeat(0).take(self.degree * 24).collect();
         for i in 1..=self.degree {
             #[allow(clippy::unwrap_used)]
             self.coefficients[i]
@@ -168,7 +169,7 @@ impl Gf2_192Poly {
     /// Constructs a constant polynomial (degree 0) which takes value of `constant_term`.
     /// `max_degree` specifies the maximum degree of the polynomial (to allocate space).
     fn make_constant(max_degree: usize, constant_term: i32) -> Gf2_192Poly {
-        let mut coefficients: Vec<_> = std::iter::repeat_with(Gf2_192::new)
+        let mut coefficients: Vec<_> = core::iter::repeat_with(Gf2_192::new)
             .take(max_degree + 1)
             .collect();
         coefficients[0] = Gf2_192::from(constant_term);
@@ -225,7 +226,7 @@ mod tests {
         let mut rng = thread_rng();
 
         for len in 1..100 {
-            let mut points: Vec<_> = std::iter::repeat(0).take(len).collect();
+            let mut points: Vec<_> = core::iter::repeat(0).take(len).collect();
             // Generate a byte that's not an element of `points` nor 0
             let mut j = 0;
             while j < points.len() {

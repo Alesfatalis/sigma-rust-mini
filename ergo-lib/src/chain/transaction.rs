@@ -5,6 +5,9 @@ pub mod input;
 pub mod reduced;
 pub mod unsigned;
 
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
 use bounded_vec::BoundedVec;
 use ergo_chain_types::blake2b256_hash;
 pub use ergotree_interpreter::eval::context::TxIoVec;
@@ -19,6 +22,7 @@ use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::TokenId;
 pub use ergotree_ir::chain::tx_id::TxId;
+use ergotree_ir::chain::IndexSet;
 use ergotree_ir::ergo_tree::ErgoTreeError;
 use thiserror::Error;
 
@@ -38,12 +42,10 @@ use crate::wallet::tx_context::TransactionContextError;
 
 use self::unsigned::UnsignedTransaction;
 
-use indexmap::IndexSet;
-
-use std::convert::TryFrom;
-use std::convert::TryInto;
-use std::iter::FromIterator;
-use std::rc::Rc;
+use alloc::rc::Rc;
+use core::convert::TryFrom;
+use core::convert::TryInto;
+use core::iter::FromIterator;
 
 use super::ergo_state_context::ErgoStateContext;
 
@@ -296,7 +298,8 @@ impl SigmaSerializable for Transaction {
                 "too many tokens in transaction".to_string(),
             ));
         }
-        let mut token_ids = IndexSet::with_capacity(tokens_count as usize);
+        let mut token_ids =
+            IndexSet::with_capacity_and_hasher(tokens_count as usize, Default::default());
         for _ in 0..tokens_count {
             token_ids.insert(TokenId::sigma_parse(r)?);
         }
@@ -379,7 +382,6 @@ pub fn verify_tx_input_proof(
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 pub mod arbitrary {
-
     use super::*;
     use proptest::prelude::*;
     use proptest::{arbitrary::Arbitrary, collection::vec};
@@ -404,8 +406,8 @@ pub mod arbitrary {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
+#[cfg(feature = "arbitrary")]
 pub mod tests {
-
     use super::*;
 
     use ergotree_ir::serialization::sigma_serialize_roundtrip;

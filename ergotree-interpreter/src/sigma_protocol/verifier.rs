@@ -1,6 +1,6 @@
 //! Verifier
 
-use std::rc::Rc;
+use alloc::rc::Rc;
 
 use super::dht_protocol;
 use super::dht_protocol::FirstDhTupleProverMessage;
@@ -174,7 +174,7 @@ impl Verifier for TestVerifier {}
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
-    use std::convert::TryFrom;
+    use core::convert::TryFrom;
 
     use crate::sigma_protocol::private_input::{DhTupleProverInput, DlogProverInput, PrivateInput};
     use crate::sigma_protocol::prover::hint::HintsBag;

@@ -1,6 +1,7 @@
-use std::sync::Arc;
+use alloc::sync::Arc;
 
 use crate::sigma_protocol::prover::ContextExtension;
+use alloc::vec::Vec;
 use bounded_vec::BoundedVec;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 
@@ -35,7 +36,6 @@ impl Context {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 mod arbitrary {
-
     use super::*;
     use proptest::{collection::vec, option::of, prelude::*};
 

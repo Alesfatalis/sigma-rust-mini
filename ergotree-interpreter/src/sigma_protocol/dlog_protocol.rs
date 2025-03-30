@@ -2,6 +2,8 @@
 
 use super::wscalar::Wscalar;
 use super::ProverMessage;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use ergo_chain_types::EcPoint;
 use ergotree_ir::serialization::SigmaSerializable;
 
@@ -38,30 +40,38 @@ pub struct SecondDlogProverMessage {
 
 /// Interactive prover
 pub mod interactive_prover {
-    use std::ops::Mul;
+    use core::ops::Mul;
 
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
-    use crate::sigma_protocol::crypto_utils;
     use crate::sigma_protocol::wscalar::Wscalar;
     use crate::sigma_protocol::{private_input::DlogProverInput, Challenge};
+    use alloc::boxed::Box;
+    use blake2::Blake2b;
+    use blake2::Digest;
+    use elliptic_curve::ops::MulByGenerator;
     use ergo_chain_types::{
         ec_point::{exponentiate, generator, inverse},
         EcPoint,
     };
-    use ergotree_ir::sigma_protocol::dlog_group;
+    use ergotree_ir::serialization::SigmaSerializable;
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
-    use k256::Scalar;
+    use k256::elliptic_curve::ops::Reduce;
+    use k256::{ProjectivePoint, Scalar};
 
     /// Step 5 from <https://ergoplatform.org/docs/ErgoScript.pdf>
     /// For every leaf marked “simulated”, use the simulator of the sigma protocol for that leaf
     /// to compute the commitment "a" and the response "z", given the challenge "e" that
     /// is already stored in the leaf
+    #[cfg(feature = "std")]
     pub(crate) fn simulate(
         public_input: &ProveDlog,
         challenge: &Challenge,
     ) -> (FirstDlogProverMessage, SecondDlogProverMessage) {
+        use ergotree_ir::sigma_protocol::dlog_group;
         //SAMPLE a random z <- Zq
-        let z = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+        let z = dlog_group::random_scalar_in_group_range(
+            crate::sigma_protocol::crypto_utils::secure_rng(),
+        );
 
         //COMPUTE a = g^z*h^(-e)  (where -e here means -e mod q)
         let e: Scalar = challenge.clone().into();
@@ -78,11 +88,58 @@ pub mod interactive_prover {
     /// Step 6 from <https://ergoplatform.org/docs/ErgoScript.pdf>
     /// For every leaf marked “real”, use the first prover step of the sigma protocol for
     /// that leaf to compute the necessary randomness "r" and the commitment "a"
+    #[cfg(feature = "std")]
     pub fn first_message() -> (Wscalar, FirstDlogProverMessage) {
-        let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+        use ergotree_ir::sigma_protocol::dlog_group;
+        let r = dlog_group::random_scalar_in_group_range(
+            crate::sigma_protocol::crypto_utils::secure_rng(),
+        );
         let g = generator();
         let a = exponentiate(&g, &r);
         (r.into(), FirstDlogProverMessage { a: a.into() })
+    }
+
+    /// Step 6 from <https://ergoplatform.org/docs/ErgoScript.pdf>
+    /// Generate first message "nonce" deterministically, optionally using auxilliary rng
+    /// # Safety
+    /// This is only intended to be used in single-signer scenarios.
+    /// Using this in multi-signature situations where other (untrusted) signers influence the signature can cause private key leakage by producing multiple signatures for the same message with the same nonce
+    pub fn first_message_deterministic(
+        sk: &DlogProverInput,
+        msg: &[u8],
+        aux_rand: &[u8],
+    ) -> (Wscalar, FirstDlogProverMessage) {
+        // This is based on BIP340 deterministic nonces, see: https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#default-signing
+        type Blake2b256 = Blake2b<blake2::digest::typenum::U32>;
+        const AUX_TAG: &[u8] = b"erg/aux";
+        // Perform domain seperation so alternative signature schemes don't end up producing the same nonce, for example ProveDHTuple with deterministic nonces
+        const NONCE_TAG: &[u8] = b"ergprovedlog/nonce";
+
+        let aux_rand_hash: [u8; 32] = Blake2b256::new()
+            .chain_update(AUX_TAG)
+            .chain_update(aux_rand)
+            .finalize()
+            .into();
+        let mut sk_bytes = sk.w.as_scalar_ref().to_bytes();
+        sk_bytes
+            .iter_mut()
+            .zip(aux_rand_hash)
+            .for_each(|(a, b)| *a ^= b);
+        #[allow(clippy::unwrap_used)] // unwrap will only fail if OOM
+        let hash = Blake2b256::new()
+            .chain_update(NONCE_TAG)
+            .chain_update(sk_bytes)
+            .chain_update(sk.public_image().h.sigma_serialize_bytes().unwrap())
+            .chain_update(msg)
+            .finalize();
+
+        let r = <Scalar as Reduce<k256::U256>>::reduce_bytes(&hash);
+        (
+            r.into(),
+            FirstDlogProverMessage {
+                a: Box::new(ProjectivePoint::mul_by_generator(&r).into()),
+            },
+        )
     }
 
     /// Step 9 part 2 from <https://ergoplatform.org/docs/ErgoScript.pdf>
@@ -105,7 +162,7 @@ pub mod interactive_prover {
     /// The function computes initial prover's commitment to randomness
     /// ("a" message of the sigma-protocol) based on the verifier's challenge ("e")
     /// and prover's response ("z")
-    ///  
+    ///
     /// g^z = a*h^e => a = g^z/h^e
     pub fn compute_commitment(
         proposition: &ProveDlog,
@@ -129,6 +186,8 @@ mod tests {
     use super::*;
     use crate::sigma_protocol::private_input::DlogProverInput;
 
+    use fiat_shamir::fiat_shamir_hash_fn;
+    use proptest::collection::vec;
     use proptest::prelude::*;
 
     proptest! {
@@ -136,13 +195,27 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
-        #[cfg(feature = "arbitrary")]
         fn test_compute_commitment(secret in any::<DlogProverInput>(), challenge in any::<Challenge>()) {
             let pk = secret.public_image();
             let (r, commitment) = interactive_prover::first_message();
             let second_message = interactive_prover::second_message(&secret, r, &challenge);
             let a = interactive_prover::compute_commitment(&pk, &challenge, &second_message);
             prop_assert_eq!(a, *commitment.a);
+        }
+
+
+        #[test]
+        fn test_deterministic_commitment(secret in any::<DlogProverInput>(), secret2 in any::<DlogProverInput>(), message in vec(any::<u8>(), 0..100000)) {
+            fn sign(secret: &DlogProverInput, message: &[u8]) -> EcPoint {
+                let pk = secret.public_image();
+                let challenge: Challenge = fiat_shamir_hash_fn(message).into();
+                let (r, _) = interactive_prover::first_message_deterministic(secret, message, &[]);
+                let second_message = interactive_prover::second_message(secret, r, &challenge);
+                interactive_prover::compute_commitment(&pk, &challenge, &second_message)
+            }
+            let a = sign(&secret, &message);
+            let a2 = sign(&secret2, &message);
+            prop_assert_ne!(a, a2);
         }
     }
 }

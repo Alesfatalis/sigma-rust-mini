@@ -1,6 +1,7 @@
 //! Trait for base16-encoded serialized bytes
 
 use crate::serialization::SigmaSerializationError;
+use alloc::string::String;
 
 /// Encodes serialized bytes as Base16
 pub trait Base16Str {

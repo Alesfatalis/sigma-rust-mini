@@ -1,3 +1,4 @@
+extern crate derive_more;
 use crate::chain::ergo_box::box_value::BoxValue;
 use crate::chain::ergo_box::BoxId;
 use crate::chain::ergo_box::BoxTokens;
@@ -10,12 +11,13 @@ use crate::chain::tx_id::TxId;
 use crate::ergo_tree::ErgoTree;
 use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializationError;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::convert::TryInto;
+use core::str::FromStr;
 use ergo_chain_types::Base16DecodedBytes;
-use std::convert::TryFrom;
-use std::convert::TryInto;
-use std::str::FromStr;
 
-extern crate derive_more;
 use derive_more::From;
 
 use serde::{Deserialize, Serialize};
@@ -241,8 +243,9 @@ impl FromStr for RichConstant {
 #[allow(clippy::panic)]
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[cfg(feature = "arbitrary")]
 mod tests {
-    use std::convert::TryInto;
+    use core::convert::TryInto;
 
     use crate::chain::ergo_box::ErgoBox;
     use crate::chain::ergo_box::NonMandatoryRegisterId;

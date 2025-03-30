@@ -1,22 +1,21 @@
 //! Private input types for the prover's secrets
-use std::convert::TryInto;
-use std::fmt::Formatter;
+extern crate derive_more;
+use core::convert::TryInto;
+use core::fmt::Formatter;
 
+use alloc::vec::Vec;
 use ergo_chain_types::EcPoint;
 use ergotree_ir::serialization::SigmaSerializable;
-use ergotree_ir::sigma_protocol::dlog_group;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
-extern crate derive_more;
 use derive_more::From;
 use k256::elliptic_curve::PrimeField;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
 
-use super::crypto_utils;
 use super::wscalar::Wscalar;
 
 /// Secret key of discrete logarithm signature protocol
@@ -28,8 +27,8 @@ pub struct DlogProverInput {
     pub w: Wscalar,
 }
 
-impl std::fmt::Debug for DlogProverInput {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DlogProverInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         // to avoid leaking it in error messages, logs, etc.
         "DLOGPI:***".fmt(f)
     }
@@ -40,9 +39,13 @@ impl DlogProverInput {
     pub const SIZE_BYTES: usize = 32;
 
     /// generates random secret in the range [0, n), where n is DLog group order.
+    #[cfg(feature = "std")]
     pub fn random() -> DlogProverInput {
         DlogProverInput {
-            w: dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()).into(),
+            w: ergotree_ir::sigma_protocol::dlog_group::random_scalar_in_group_range(
+                super::crypto_utils::secure_rng(),
+            )
+            .into(),
         }
     }
 
@@ -56,7 +59,7 @@ impl DlogProverInput {
 
     /// Attempts to parse the given Base16-encoded byte array as an SEC-1-encoded scalar(secret key).
     /// Returns None if the byte array does not contain a big-endian integer in the range [0, modulus).
-    pub fn from_base16_str(str: String) -> Option<DlogProverInput> {
+    pub fn from_base16_str(str: &str) -> Option<DlogProverInput> {
         base16::decode(&str)
             .ok()
             .and_then(|bytes| bytes.as_slice().try_into().ok().map(Self::from_bytes))
@@ -116,8 +119,8 @@ pub struct DhTupleProverInput {
     pub common_input: ProveDhTuple,
 }
 
-impl std::fmt::Debug for DhTupleProverInput {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DhTupleProverInput {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         // to avoid leaking it in error messages, logs, etc.
         "DHTPI:***".fmt(f)
     }
@@ -129,14 +132,16 @@ impl DhTupleProverInput {
 
     /// Create random secret and Diffie-Hellman tuple
     #[allow(clippy::many_single_char_names)]
+    #[cfg(feature = "std")]
     pub fn random() -> DhTupleProverInput {
         use ergo_chain_types::ec_point::{exponentiate, generator};
+        use ergotree_ir::sigma_protocol::dlog_group;
         let g = generator();
         let h = exponentiate(
             &generator(),
-            &dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()),
+            &dlog_group::random_scalar_in_group_range(super::crypto_utils::secure_rng()),
         );
-        let w = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+        let w = dlog_group::random_scalar_in_group_range(super::crypto_utils::secure_rng());
         let u = exponentiate(&g, &w);
         let v = exponentiate(&h, &w);
         let common_input = ProveDhTuple::new(g, h, u, v);
@@ -238,7 +243,6 @@ impl PrivateInput {
 #[cfg(feature = "arbitrary")]
 /// Arbitrary impl
 pub(crate) mod arbitrary {
-
     use super::*;
     use proptest::prelude::*;
 

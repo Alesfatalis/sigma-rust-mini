@@ -1,6 +1,8 @@
 //! Code to implement `TokenAmount` JSON encoding
 
-use std::convert::TryFrom;
+use core::convert::TryFrom;
+
+use alloc::string::String;
 
 use crate::chain::token::TokenAmount;
 

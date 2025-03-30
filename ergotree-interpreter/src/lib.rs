@@ -1,5 +1,6 @@
 //! ErgoTree interpreter
 
+#![cfg_attr(not(feature = "std"), no_std)]
 // Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
@@ -19,7 +20,8 @@
 #![deny(clippy::unreachable)]
 #![deny(clippy::panic)]
 
-mod util;
+#[macro_use]
+extern crate alloc;
 
 pub mod eval;
 pub mod sigma_protocol;

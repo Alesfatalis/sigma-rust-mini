@@ -11,7 +11,6 @@ description = "Test utilities for Ergo"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-proptest = {version = "1.0.0"}
-proptest-derive = {version = "0.3.0"}
+proptest = {workspace = true}
 
 [dev-dependencies]

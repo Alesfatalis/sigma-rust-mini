@@ -1,5 +1,6 @@
 //! Evaluation of ErgoTree expressions
 
+use alloc::string::ToString;
 use ergotree_ir::mir::expr::Expr;
 use ergotree_ir::mir::value::Value;
 use ergotree_ir::source_span::Spanned;

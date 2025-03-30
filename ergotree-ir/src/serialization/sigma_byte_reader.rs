@@ -1,8 +1,8 @@
 //! Sigma byte stream writer
 use super::constant_store::ConstantStore;
+use core2::io::Cursor;
+use core2::io::Read;
 use sigma_ser::vlq_encode::ReadSigmaVlqExt;
-use std::io::Cursor;
-use std::io::Read;
 
 /// Implementation of SigmaByteRead
 pub struct SigmaByteReader<R> {
@@ -57,7 +57,7 @@ pub trait SigmaByteRead: ReadSigmaVlqExt {
 }
 
 impl<R: Read> Read for SigmaByteReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> core2::io::Result<usize> {
         self.inner.read(buf)
     }
 }

@@ -1,5 +1,6 @@
 //! Transaction context
 
+use alloc::vec::Vec;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use thiserror::Error;
 

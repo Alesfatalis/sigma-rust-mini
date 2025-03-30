@@ -7,8 +7,8 @@ use crate::serialization::SigmaSerializeResult;
 use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, SigmaParsingError, SigmaSerializable,
 };
+use core::convert::TryFrom;
 use derive_more::FromStr;
-use std::convert::TryFrom;
 use thiserror::Error;
 
 #[cfg(not(feature = "json"))]
@@ -114,7 +114,7 @@ impl BoxValue {
 }
 
 impl PartialOrd for BoxValue {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         self.0.partial_cmp(other.as_u64())
     }
 }
@@ -211,9 +211,9 @@ pub fn checked_sum<I: Iterator<Item = BoxValue>>(mut iter: I) -> Result<BoxValue
 /// Arbitrary
 #[cfg(feature = "arbitrary")]
 pub mod arbitrary {
+    use core::ops::Range;
     use derive_more::{From, Into};
     use proptest::{arbitrary::Arbitrary, prelude::*};
-    use std::ops::Range;
 
     use super::*;
 
@@ -240,9 +240,12 @@ pub mod arbitrary {
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 pub mod tests {
-    use std::convert::TryInto;
+    use core::convert::TryInto;
 
     use super::*;
+    use alloc::vec;
+    use alloc::vec::Vec;
+    #[cfg(feature = "arbitrary")]
     use proptest::{collection::vec, prelude::*};
 
     extern crate derive_more;
@@ -321,6 +324,7 @@ pub mod tests {
         assert!(checked_sum(input.into_iter()).is_err());
     }
 
+    #[cfg(feature = "arbitrary")]
     proptest! {
 
         #[test]

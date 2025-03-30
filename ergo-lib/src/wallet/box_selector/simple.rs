@@ -1,9 +1,11 @@
 //! Naive box selector, collects inputs until target balance is reached
 
-use std::cmp::min;
-use std::collections::HashMap;
-use std::convert::TryInto;
+use core::cmp::min;
+use core::convert::TryInto;
+use hashbrown::HashMap;
 
+use alloc::string::String;
+use alloc::vec::Vec;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxTokens;
 use ergotree_ir::chain::ergo_box::ErgoBox;
@@ -288,16 +290,9 @@ fn make_change_boxes(
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
+#[cfg(feature = "arbitrary")]
 mod tests {
-
-    use std::convert::TryFrom;
-
-    use ergotree_ir::chain::{
-        address::{AddressEncoder, NetworkPrefix},
-        ergo_box::{box_value::checked_sum, ErgoBox, ErgoBoxCandidate},
-        token::arbitrary::ArbTokenIdParam,
-    };
-    use proptest::{collection::vec, prelude::*};
+    use core::convert::TryFrom;
 
     use crate::{
         chain::ergo_box::box_builder::{ErgoBoxCandidateBuilder, ErgoBoxCandidateBuilderError},
@@ -306,6 +301,13 @@ mod tests {
             sum_value,
         },
     };
+    use ergotree_ir::chain::ergo_box::arbitrary::ArbBoxParameters;
+    use ergotree_ir::chain::{
+        address::{AddressEncoder, NetworkPrefix},
+        ergo_box::{box_value::checked_sum, ErgoBox, ErgoBoxCandidate},
+        token::arbitrary::ArbTokenIdParam,
+    };
+    use proptest::{collection::vec, prelude::*};
 
     use super::*;
 
@@ -320,9 +322,7 @@ mod tests {
     proptest! {
 
         #[test]
-        fn test_select_not_enough_value(inputs in
-                                        vec(any_with::<ErgoBoxAssetsData>(
-                                            (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10)) {
+        fn test_select_not_enough_value(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 1..10)) {
             let s = SimpleBoxSelector::new();
             let all_inputs_val = checked_sum(inputs.iter().map(|b| b.value)).unwrap();
 
@@ -331,9 +331,7 @@ mod tests {
         }
 
         #[test]
-        fn test_select_value(inputs in
-                              vec(any_with::<ErgoBoxAssetsData>(
-                              (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 2..10)) {
+        fn test_select_value(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 2..10)) {
             let all_inputs_val = checked_sum(inputs.iter().map(|b| b.value)).unwrap();
             let s = SimpleBoxSelector::new();
             let target_balance = all_inputs_val.checked_sub(&(all_inputs_val.as_u64()/2).try_into().unwrap()).unwrap();
@@ -351,9 +349,7 @@ mod tests {
         }
 
         #[test]
-        fn test_select_change_value_is_too_small(inputs in
-                                                 vec(any_with::<ErgoBoxAssetsData>(
-                                                 (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 2..10)) {
+        fn test_select_change_value_is_too_small(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 2..10)) {
             let first_input_box = inputs.get(0).unwrap().clone();
             let s = SimpleBoxSelector::new();
             let target_balance = BoxValue::try_from(first_input_box.value().as_u64() - 1).unwrap();
@@ -371,9 +367,7 @@ mod tests {
         }
 
         #[test]
-        fn test_select_value_change_and_tokens(inputs in
-                      vec(any_with::<ErgoBoxAssetsData>(
-                      (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 2..10),
+        fn test_select_value_change_and_tokens(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 2..10),
                         target_balance in
                         any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1500).into())) {
             let first_input_box = inputs.get(0).unwrap().clone();
@@ -400,9 +394,7 @@ mod tests {
         }
 
         #[test]
-        fn test_select_all_value(inputs in
-                                  vec(any_with::<ErgoBoxAssetsData>(
-                                      (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10)) {
+        fn test_select_all_value(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 1..10)) {
             let s = SimpleBoxSelector::new();
             let all_inputs_val = checked_sum(inputs.iter().map(|b| b.value)).unwrap();
             let balance_less = all_inputs_val.checked_sub(&BoxValue::SAFE_USER_MIN).unwrap();
@@ -419,9 +411,7 @@ mod tests {
         }
 
         #[test]
-        fn test_select_single_token(inputs in
-                                    vec(any_with::<ErgoBoxAssetsData>(
-                                        (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
+        fn test_select_single_token(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 1..10),
                                     target_balance in
                                     any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 800).into()),
                                     target_token_amount in 1..100u64) {
@@ -452,9 +442,7 @@ mod tests {
         }
 
         #[test]
-        fn test_select_single_token_all_amount(inputs in
-                                               vec(any_with::<ErgoBoxAssetsData>(
-                                                   (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
+        fn test_select_single_token_all_amount(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 1..10),
                                                target_balance in
                                                any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 500).into())) {
             let s = SimpleBoxSelector::new();
@@ -482,9 +470,7 @@ mod tests {
         }
 
         #[test]
-        fn test_select_multiple_tokens(inputs in
-                                       vec(any_with::<ErgoBoxAssetsData>(
-                                           (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
+        fn test_select_multiple_tokens(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 2..10),
                                        target_balance in
                                        any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 500).into()),
                                        target_token1_amount in 1..100u64,
@@ -527,9 +513,7 @@ mod tests {
         }
 
         #[test]
-        fn test_select_not_enough_tokens(inputs in
-                                         vec(any_with::<ErgoBoxAssetsData>(
-                                             (BoxValue::MIN_RAW * 1000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
+        fn test_select_not_enough_tokens(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 1000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 1..10),
                                          target_balance in
                                          any_with::<BoxValue>((BoxValue::MIN_RAW * 100 .. BoxValue::MIN_RAW * 1000).into())) {
             let s = SimpleBoxSelector::new();

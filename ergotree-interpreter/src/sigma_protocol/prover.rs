@@ -1,16 +1,14 @@
 //! Interpreter with enhanced functionality to prove statements.
 
-mod context_extension;
 mod prover_result;
 
 pub mod hint;
 
 use crate::eval::reduce_to_crypto;
 use crate::eval::ReductionDiagnosticInfo;
-use crate::sigma_protocol::crypto_utils::secure_random_bytes;
+use crate::sigma_protocol::dht_protocol;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_hash_fn;
 use crate::sigma_protocol::fiat_shamir::fiat_shamir_tree_to_bytes;
-use crate::sigma_protocol::gf2_192::gf2_192poly_from_byte_array;
 use crate::sigma_protocol::proof_tree::ProofTree;
 use crate::sigma_protocol::unchecked_tree::{UncheckedDhTuple, UncheckedLeaf};
 use crate::sigma_protocol::unproven_tree::CandUnproven;
@@ -19,17 +17,16 @@ use crate::sigma_protocol::unproven_tree::NodePosition;
 use crate::sigma_protocol::unproven_tree::UnprovenDhTuple;
 use crate::sigma_protocol::Challenge;
 use crate::sigma_protocol::UnprovenLeaf;
-use crate::sigma_protocol::SOUNDNESS_BYTES;
-use crate::sigma_protocol::{crypto_utils, dht_protocol};
+use alloc::rc::Rc;
+use alloc::vec::Vec;
+use core::convert::TryInto;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use gf2_192::gf2_192poly::Gf2_192Poly;
 use gf2_192::gf2_192poly::Gf2_192PolyError;
 use gf2_192::Gf2_192Error;
-use std::convert::TryInto;
-use std::rc::Rc;
 
-pub use context_extension::*;
+pub use ergotree_ir::chain::context_extension::*;
 use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::ergo_tree::ErgoTreeError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
@@ -57,9 +54,6 @@ use super::FirstProverMessage::FirstDlogProverMessage;
 use crate::eval::context::Context;
 use crate::eval::EvalError;
 
-use crate::sigma_protocol::dht_protocol::SecondDhTupleProverMessage;
-use crate::sigma_protocol::dlog_protocol::SecondDlogProverMessage;
-use ergotree_ir::sigma_protocol::dlog_group;
 use thiserror::Error;
 
 /// Prover errors
@@ -98,6 +92,9 @@ pub enum ProverError {
     /// Error while tree serialization for Fiat-Shamir hash
     #[error("Fiat-Shamir tree serialization error: {0}")]
     FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
+    /// Unsupported operation
+    #[error("RNG is not available in no_std environments, can't generate signature without Hint")]
+    Unsupported,
 }
 
 impl From<ErgoTreeError> for ProverError {
@@ -462,21 +459,32 @@ fn step4_real_conj(
         //real OR Threshold case
         UnprovenConjecture::CorUnproven(_) | UnprovenConjecture::CthresholdUnproven(_) => {
             let new_children = cast_to_unp(uc.children())?
-                .mapped(|c| {
+                .try_mapped(|c| -> Result<_, ProverError> {
                     if c.is_real() {
-                        c
+                        Ok(c)
                     } else {
                         // take challenge from previously done proof stored in the hints bag,
                         // or generate random challenge for simulated child
-                        let new_challenge: Challenge = hints_bag
+                        let new_challenge: Challenge = if let Some(new_challenge) = hints_bag
                             .proofs()
                             .into_iter()
                             .find(|p| p.position() == c.position())
                             .map(|p| p.challenge().clone())
-                            .unwrap_or_else(Challenge::secure_random);
-                        c.with_challenge(new_challenge)
+                        {
+                            new_challenge
+                        } else {
+                            #[cfg(feature = "std")]
+                            {
+                                Challenge::secure_random()
+                            }
+                            #[cfg(not(feature = "std"))]
+                            {
+                                return Err(ProverError::Unsupported);
+                            }
+                        };
+                        Ok(c.with_challenge(new_challenge))
                     }
-                })
+                })?
                 .mapped(|c| c.into());
             Ok(Some(
                 uc.with_children(new_children).into(), // CorUnproven {
@@ -511,6 +519,7 @@ fn step4_simulated_and_conj(cand: CandUnproven) -> Result<Option<ProofTree>, Pro
     }
 }
 
+#[cfg(feature = "std")]
 fn step4_simulated_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, ProverError> {
     // If the node is OR, then each of its children except one gets a fresh uniformly random
     // challenge in {0,1}^t. The remaining child gets a challenge computed as an XOR of the challenges of all
@@ -556,9 +565,16 @@ fn step4_simulated_or_conj(cor: CorUnproven) -> Result<Option<ProofTree>, Prover
     }
 }
 
+#[cfg(not(feature = "std"))]
+fn step4_simulated_or_conj(_cor: CorUnproven) -> Result<Option<ProofTree>, ProverError> {
+    Err(ProverError::Unsupported)
+}
+
+#[cfg(feature = "std")]
 fn step4_simulated_threshold_conj(
     ct: CthresholdUnproven,
 ) -> Result<Option<ProofTree>, ProverError> {
+    use crate::sigma_protocol::gf2_192::gf2_192poly_from_byte_array;
     // The faster algorithm is as follows. Pick n-k fresh uniformly random values
     // q_1, ..., q_{n-k} from {0,1}^t and let q_0=e_0.
     // Viewing 1, 2, ..., n and q_0, ..., q_{n-k} as elements of GF(2^t),
@@ -570,7 +586,7 @@ fn step4_simulated_threshold_conj(
         let n = ct.children.len();
         let q = gf2_192poly_from_byte_array(
             challenge,
-            secure_random_bytes(SOUNDNESS_BYTES * (n - ct.k as usize)),
+            super::crypto_utils::secure_random_bytes(super::SOUNDNESS_BYTES * (n - ct.k as usize)),
         )?;
         let new_children = unproven_children
             .enumerated()
@@ -590,6 +606,13 @@ fn step4_simulated_threshold_conj(
             "step4_simulated_threshold_conj: missing CthresholdUnproven(simulated).challenge",
         ))
     }
+}
+
+#[cfg(not(feature = "std"))]
+fn step4_simulated_threshold_conj(
+    _ct: CthresholdUnproven,
+) -> Result<Option<ProofTree>, ProverError> {
+    Err(ProverError::Unsupported)
 }
 
 fn step5_schnorr(
@@ -619,6 +642,7 @@ fn step5_schnorr(
             .into();
             pt
         }
+        #[cfg(feature = "std")]
         None => {
             if us.simulated {
                 // Step 5 (simulated leaf -- complete the simulation)
@@ -650,6 +674,8 @@ fn step5_schnorr(
                 ))
             }?
         }
+        #[cfg(not(feature = "std"))]
+        None => return Err(ProverError::Unsupported),
     };
     Ok(Some(res))
 }
@@ -682,6 +708,7 @@ fn step5_diffie_hellman_tuple(
         .unwrap_or_else(|| {
             if dhu.simulated {
                 // Step 5 (simulated leaf -- complete the simulation)
+                #[cfg(feature = "std")]
                 if let Some(dhu_challenge) = dhu.challenge_opt.clone() {
                     let (fm, sm) = dht_protocol::interactive_prover::simulate(
                         &dhu.proposition,
@@ -697,7 +724,11 @@ fn step5_diffie_hellman_tuple(
                 } else {
                     Err(ProverError::SimulatedLeafWithoutChallenge)
                 }
+                #[cfg(not(feature = "std"))]
+                return Err(ProverError::Unsupported);
             } else {
+                #[cfg(feature = "std")]
+                {
                 // Step 6 -- compute the commitment
                 let (r, fm) =
                     dht_protocol::interactive_prover::first_message(&dhu.proposition);
@@ -707,6 +738,11 @@ fn step5_diffie_hellman_tuple(
                     ..dhu.clone()
                 }
                     .into())
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    Err(ProverError::Unsupported)
+                }
             }
         });
     Ok(Some(res?))
@@ -923,9 +959,19 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                     }
                 }
                 None => {
-                    let bs =
-                        dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()).into();
-                    SecondDlogProverMessage { z: bs }
+                    #[cfg(feature = "std")]
+                    {
+                        let bs =
+                            ergotree_ir::sigma_protocol::dlog_group::random_scalar_in_group_range(
+                                crate::sigma_protocol::crypto_utils::secure_rng(),
+                            )
+                            .into();
+                        dlog_protocol::SecondDlogProverMessage { z: bs }
+                    }
+                    #[cfg(not(feature = "std"))]
+                    {
+                        return Err(ProverError::Unsupported);
+                    }
                 }
             },
         };
@@ -1000,9 +1046,19 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                     }
                 }
                 None => {
-                    let z =
-                        dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng()).into();
-                    SecondDhTupleProverMessage { z }
+                    #[cfg(feature = "std")]
+                    {
+                        let z =
+                            ergotree_ir::sigma_protocol::dlog_group::random_scalar_in_group_range(
+                                super::crypto_utils::secure_rng(),
+                            )
+                            .into();
+                        dht_protocol::SecondDhTupleProverMessage { z }
+                    }
+                    #[cfg(not(feature = "std"))]
+                    {
+                        return Err(ProverError::Unsupported);
+                    }
                 }
             },
         };
@@ -1209,13 +1265,13 @@ mod tests {
     use super::*;
     use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::private_input::DlogProverInput;
+    use alloc::rc::Rc;
+    use core::convert::TryFrom;
     use ergotree_ir::mir::constant::Constant;
     use ergotree_ir::mir::constant::Literal;
     use ergotree_ir::mir::expr::Expr;
     use ergotree_ir::types::stype::SType;
     use sigma_test_util::force_any_val;
-    use std::convert::TryFrom;
-    use std::rc::Rc;
 
     #[test]
     fn test_prove_true_prop() {
@@ -1257,6 +1313,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_prove_pk_prop() {
         let secret = DlogProverInput::random();
         let pk = secret.public_image();
@@ -1279,6 +1336,7 @@ mod tests {
     // TODO mini: restore tests that was here before minification (see git history of this file)
 
     #[test]
+    #[cfg(feature = "std")]
     fn test_prove_dht_prop() {
         let secret = DhTupleProverInput::random();
         let pi = secret.public_image();

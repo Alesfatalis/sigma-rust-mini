@@ -13,17 +13,19 @@ use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
 
+use alloc::string::ToString;
+use alloc::vec::Vec;
 pub use box_id::*;
 use ergo_chain_types::Digest32;
 pub use register::*;
 
+use super::IndexSet;
 use bounded_vec::BoundedVec;
-use indexmap::IndexSet;
+use core::convert::TryFrom;
 use sigma_util::hash::blake2b256_hash;
 use sigma_util::AsVecI8;
-use std::convert::TryFrom;
 
-use std::convert::TryInto;
+use core::convert::TryInto;
 
 use self::box_value::BoxValue;
 
@@ -388,24 +390,52 @@ pub fn parse_box_with_indexed_digests<R: SigmaByteRead>(
 pub mod arbitrary {
     use super::box_value::arbitrary::ArbBoxValueRange;
     use super::*;
-    use proptest::{arbitrary::Arbitrary, collection::vec, option::of, prelude::*};
+    use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
+
+    /// Parameters for generating an arbitrary ErgoBox or ErgoBoxCandidate
+    #[allow(missing_docs)]
+    pub struct ArbBoxParameters {
+        pub value_range: ArbBoxValueRange,
+        pub ergo_tree: BoxedStrategy<ErgoTree>,
+        pub tokens: BoxedStrategy<Option<BoxTokens>>,
+        pub creation_height: BoxedStrategy<u32>,
+        pub registers: BoxedStrategy<NonMandatoryRegisters>,
+    }
+    impl core::default::Default for ArbBoxParameters {
+        fn default() -> Self {
+            Self {
+                value_range: ArbBoxValueRange::default(),
+                ergo_tree: any::<ErgoTree>(),
+                tokens: prop_oneof![
+                    vec(any::<Token>(), 1..3)
+                        .prop_map(BoxTokens::from_vec)
+                        .prop_map(Result::unwrap)
+                        .prop_map(Some),
+                    Just(None)
+                ]
+                .boxed(),
+                creation_height: (0..i32::MAX as u32).boxed(),
+                registers: any::<NonMandatoryRegisters>(),
+            }
+        }
+    }
 
     impl Arbitrary for ErgoBoxCandidate {
-        type Parameters = ArbBoxValueRange;
+        type Parameters = ArbBoxParameters;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
-                any_with::<BoxValue>(args),
-                any::<ErgoTree>(),
-                of(vec(any::<Token>(), 1..3)),
-                any::<u32>(),
-                any::<NonMandatoryRegisters>(),
+                any_with::<BoxValue>(args.value_range),
+                args.ergo_tree,
+                args.tokens,
+                args.creation_height,
+                args.registers,
             )
                 .prop_map(
                     |(value, ergo_tree, tokens, creation_height, additional_registers)| Self {
                         value,
                         ergo_tree,
-                        tokens: tokens.map(BoundedVec::from_vec).map(Result::unwrap),
+                        tokens,
                         additional_registers,
                         creation_height,
                     },
@@ -416,7 +446,7 @@ pub mod arbitrary {
     }
 
     impl Arbitrary for ErgoBox {
-        type Parameters = ArbBoxValueRange;
+        type Parameters = ArbBoxParameters;
 
         fn arbitrary_with(args: Self::Parameters) -> Self::Strategy {
             (
@@ -446,6 +476,7 @@ pub mod arbitrary {
 #[allow(clippy::panic)]
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
     use crate::chain::token::arbitrary::ArbTokenIdParam;

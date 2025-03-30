@@ -1,3 +1,9 @@
+use alloc::boxed::Box;
+
+use crate::bigint256::BigInt256;
+use alloc::string::ToString;
+use alloc::vec;
+use alloc::vec::Vec;
 use sigma_util::AsVecU8;
 
 use crate::mir::constant::Literal;
@@ -16,7 +22,7 @@ use crate::types::stype::SType;
 use ergo_chain_types::EcPoint;
 
 use super::sigma_byte_writer::SigmaByteWrite;
-use std::convert::TryInto;
+use core::convert::TryInto;
 
 /// Used to serialize and parse `Literal` and `Value`.
 pub struct DataSerializer {}
@@ -32,9 +38,7 @@ impl DataSerializer {
             Literal::Int(v) => w.put_i32(*v)?,
             Literal::Long(v) => w.put_i64(*v)?,
             Literal::BigInt(v) => {
-                let bytes = v.to_signed_bytes_be();
-                w.put_u16(bytes.len() as u16)?;
-                w.write_all(&bytes)?
+                v.sigma_serialize(w)?;
             }
             Literal::GroupElement(ecp) => ecp.sigma_serialize(w)?,
             Literal::SigmaProp(s) => s.value().sigma_serialize(w)?,
@@ -89,21 +93,7 @@ impl DataSerializer {
             SShort => Literal::Short(r.get_i16()?),
             SInt => Literal::Int(r.get_i32()?),
             SLong => Literal::Long(r.get_i64()?),
-            SBigInt => {
-                let size = r.get_u16()?;
-                if size > 32 {
-                    return Err(SigmaParsingError::ValueOutOfBounds(format!(
-                        "serialized BigInt size {0} bytes exceeds 32",
-                        size
-                    )));
-                }
-                let mut buf = vec![0u8; size as usize];
-                r.read_exact(&mut buf)?;
-                match buf.as_slice().try_into() {
-                    Ok(x) => Literal::BigInt(x),
-                    Err(e) => return Err(SigmaParsingError::ValueOutOfBounds(e)),
-                }
-            }
+            SBigInt => Literal::BigInt(BigInt256::sigma_parse(r)?),
             SUnit => Literal::Unit,
             SGroupElement => Literal::GroupElement(Box::new(EcPoint::sigma_parse(r)?)),
             SSigmaProp => {

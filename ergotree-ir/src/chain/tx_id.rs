@@ -1,4 +1,5 @@
 //! Transaction id type
+use alloc::string::String;
 use derive_more::Display;
 
 use derive_more::From;

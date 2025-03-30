@@ -2,7 +2,7 @@
 
 extern crate derive_more;
 
-use std::fmt::Debug;
+use core::fmt::Debug;
 
 use derive_more::From;
 use derive_more::TryInto;

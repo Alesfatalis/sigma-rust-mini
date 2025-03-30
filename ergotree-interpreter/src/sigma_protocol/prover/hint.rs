@@ -1,5 +1,6 @@
 //! Hints for a prover which helps the prover to prove a statement.
 
+use alloc::vec::Vec;
 use derive_more::From;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
@@ -354,7 +355,6 @@ impl HintsBag {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 mod arbitrary {
-
     use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
     use crate::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
     use crate::sigma_protocol::sig_serializer::serialize_sig;

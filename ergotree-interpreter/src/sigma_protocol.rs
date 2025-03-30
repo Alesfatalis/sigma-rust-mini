@@ -7,6 +7,7 @@ pub mod prover;
 pub mod verifier;
 
 pub(crate) mod challenge;
+#[cfg(feature = "std")]
 mod crypto_utils;
 pub mod dht_protocol;
 pub mod dlog_protocol;
@@ -18,9 +19,11 @@ pub mod unchecked_tree;
 pub mod unproven_tree;
 pub mod wscalar;
 
-use std::array::TryFromSliceError;
-use std::convert::TryFrom;
-use std::convert::TryInto;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+use core::array::TryFromSliceError;
+use core::convert::TryFrom;
+use core::convert::TryInto;
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 

@@ -42,6 +42,7 @@ pub fn decode_u64(v: u64) -> i64 {
 #[allow(clippy::panic)]
 mod tests {
     use super::*;
+    use alloc::format;
 
     #[allow(overflowing_literals)]
     #[test]

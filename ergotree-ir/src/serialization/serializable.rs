@@ -8,12 +8,16 @@ use super::{
     sigma_byte_reader::{SigmaByteRead, SigmaByteReader},
     sigma_byte_writer::{SigmaByteWrite, SigmaByteWriter},
 };
+use alloc::boxed::Box;
+
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 use bounded_vec::BoundedVec;
 use bounded_vec::BoundedVecOutOfBounds;
+use core::convert::TryInto;
+use core2::io;
 use io::Cursor;
 use sigma_ser::{vlq_encode, ScorexParsingError, ScorexSerializationError};
-use std::convert::TryInto;
-use std::io;
 use thiserror::Error;
 
 /// Ways serialization might fail

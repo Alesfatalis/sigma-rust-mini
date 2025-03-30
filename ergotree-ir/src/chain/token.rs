@@ -5,9 +5,11 @@ use crate::serialization::{
     sigma_byte_reader::SigmaByteRead, sigma_byte_writer::SigmaByteWrite, SigmaParsingError,
     SigmaSerializable,
 };
-use std::convert::TryFrom;
+use core::convert::TryFrom;
 
 use super::ergo_box::BoxId;
+use alloc::string::String;
+use alloc::vec::Vec;
 use derive_more::From;
 use derive_more::Into;
 use ergo_chain_types::{Digest32, DigestNError};
@@ -198,7 +200,7 @@ pub mod arbitrary {
     use super::TokenAmount;
     use super::TokenId;
 
-    use std::convert::TryFrom;
+    use core::convert::TryFrom;
 
     /// How to generate a token id
     #[derive(Default)]
@@ -277,8 +279,8 @@ pub mod arbitrary {
 
 #[allow(clippy::panic)]
 #[cfg(test)]
+#[cfg(feature = "arbitrary")]
 mod tests {
-
     use crate::chain::token::TokenId;
     use crate::serialization::sigma_serialize_roundtrip;
     use proptest::prelude::*;

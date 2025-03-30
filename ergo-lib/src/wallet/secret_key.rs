@@ -1,5 +1,6 @@
 //! Secret types
 
+use alloc::vec::Vec;
 use derive_more::From;
 use ergo_chain_types::EcPoint;
 use ergotree_interpreter::sigma_protocol::private_input::DhTupleProverInput;
@@ -29,11 +30,13 @@ pub enum SecretKey {
 
 impl SecretKey {
     /// Generates random DlogProverInput
+    #[cfg(feature = "std")]
     pub fn random_dlog() -> SecretKey {
         SecretKey::DlogSecretKey(DlogProverInput::random())
     }
 
     /// Generates random DhTupleProverInput
+    #[cfg(feature = "std")]
     pub fn random_dht() -> SecretKey {
         SecretKey::DhtSecretKey(DhTupleProverInput::random())
     }
@@ -133,10 +136,11 @@ impl From<SecretKey> for PrivateInput {
 }
 
 #[cfg(test)]
+#[cfg(feature = "std")]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use std::convert::TryInto;
+    use core::convert::TryInto;
 
     #[test]
     fn dlog_roundtrip() {
@@ -167,6 +171,7 @@ mod json_tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    #[cfg(feature = "std")]
     fn json_dlog_roundtrip() {
         let sk = SecretKey::random_dlog();
         let sk_json = serde_json::to_string(&sk).unwrap();
@@ -176,6 +181,7 @@ mod json_tests {
     }
 
     #[test]
+    #[cfg(feature = "std")]
     fn json_dht_roundtrip() {
         let sk = SecretKey::random_dht();
         let sk_json = serde_json::to_string(&sk).unwrap();

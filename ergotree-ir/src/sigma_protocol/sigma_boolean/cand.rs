@@ -1,5 +1,7 @@
 //! AND conjunction for sigma proposition
-use std::convert::TryInto;
+use core::convert::TryInto;
+
+use alloc::vec::Vec;
 
 use super::SigmaBoolean;
 use super::SigmaConjectureItems;
@@ -48,8 +50,8 @@ impl Cand {
     }
 }
 
-impl std::fmt::Display for Cand {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Cand {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str("(")?;
         for (i, item) in self.items.iter().enumerate() {
             if i > 0 {
@@ -103,13 +105,16 @@ mod arbitrary {
 #[allow(clippy::panic)]
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
+#[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
     use crate::serialization::sigma_serialize_roundtrip;
     use crate::sigma_protocol::sigma_boolean::ProveDlog;
+
+    use alloc::vec;
+    use core::convert::TryInto;
     use proptest::prelude::*;
     use sigma_test_util::force_any_val;
-    use std::convert::TryInto;
 
     #[test]
     fn trivial_true() {

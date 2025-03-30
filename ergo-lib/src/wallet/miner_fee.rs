@@ -1,5 +1,6 @@
 //! Miner fee included in transaction
 
+use alloc::string::String;
 use ergotree_ir::chain::address::Address;
 use ergotree_ir::chain::address::AddressEncoder;
 use ergotree_ir::chain::address::NetworkPrefix;
@@ -26,7 +27,6 @@ lazy_static! {
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod tests {
-
     use ergotree_ir::ergo_tree::ErgoTree;
     use ergotree_ir::serialization::SigmaSerializable;
     use pretty_assertions::assert_eq;
