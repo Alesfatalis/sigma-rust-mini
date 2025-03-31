@@ -1,7 +1,10 @@
 //! ErgoBoxCandidate builder
 
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::convert::{TryFrom, TryInto};
+use hashbrown::HashMap;
 
 use ergotree_ir::chain::address::AddressEncoderError;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
@@ -279,7 +282,6 @@ impl ErgoBoxCandidateBuilder {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
-
     use ergotree_ir::base16_str::Base16Str;
     use ergotree_ir::chain::token::TokenId;
     use sigma_test_util::force_any_val;

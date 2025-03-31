@@ -1,8 +1,13 @@
 //! Ergo data type
 
-use std::convert::TryInto;
-use std::fmt::Formatter;
-use std::sync::Arc;
+extern crate derive_more;
+use alloc::boxed::Box;
+
+use alloc::string::ToString;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::convert::TryInto;
+use core::fmt::Formatter;
 
 use impl_trait_for_tuples::impl_for_tuples;
 use sigma_util::AsVecI8;
@@ -20,7 +25,6 @@ use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 use super::constant::TryExtractInto;
 
-extern crate derive_more;
 use derive_more::From;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -215,8 +219,8 @@ impl From<Literal> for Value {
     }
 }
 
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             Value::Coll(CollKind::NativeColl(NativeColl::CollByte(i8_bytes))) => {
                 write!(f, "Coll[Byte](")?;
@@ -390,13 +394,13 @@ impl<T: TryExtractFrom<Value> + StoreWrapped> TryExtractFrom<Value> for Vec<T> {
                 } => v.into_iter().map(T::try_extract_from).collect(),
                 _ => Err(TryExtractFromError(format!(
                     "expected {:?}, found {:?}",
-                    std::any::type_name::<Self>(),
+                    core::any::type_name::<Self>(),
                     coll
                 ))),
             },
             _ => Err(TryExtractFromError(format!(
                 "expected {:?}, found {:?}",
-                std::any::type_name::<Self>(),
+                core::any::type_name::<Self>(),
                 c
             ))),
         }
@@ -416,17 +420,17 @@ impl<T: TryExtractFrom<Value> + StoreWrapped, const N: usize> TryExtractFrom<Val
                         .map(T::try_extract_from)
                         .collect::<Result<Vec<_>, _>>()?;
                     let len = v.len();
-                    v.try_into().map_err(|_| TryExtractFromError(format!("can't convert vec of {:?} with length of {:?} to array with length of {:?}", std::any::type_name::<T>(), len, N)))
+                    v.try_into().map_err(|_| TryExtractFromError(format!("can't convert vec of {:?} with length of {:?} to array with length of {:?}", core::any::type_name::<T>(), len, N)))
                 }
                 _ => Err(TryExtractFromError(format!(
                     "expected {:?}, found {:?}",
-                    std::any::type_name::<Self>(),
+                    core::any::type_name::<Self>(),
                     coll
                 ))),
             },
             _ => Err(TryExtractFromError(format!(
                 "expected {:?}, found {:?}",
-                std::any::type_name::<Self>(),
+                core::any::type_name::<Self>(),
                 c
             ))),
         }
@@ -440,13 +444,13 @@ impl TryExtractFrom<Value> for Vec<i8> {
                 CollKind::NativeColl(NativeColl::CollByte(bs)) => Ok(bs),
                 _ => Err(TryExtractFromError(format!(
                     "expected {:?}, found {:?}",
-                    std::any::type_name::<Self>(),
+                    core::any::type_name::<Self>(),
                     v
                 ))),
             },
             _ => Err(TryExtractFromError(format!(
                 "expected {:?}, found {:?}",
-                std::any::type_name::<Self>(),
+                core::any::type_name::<Self>(),
                 v
             ))),
         }
@@ -472,7 +476,7 @@ impl TryExtractFrom<Value> for BigInt256 {
             Value::BigInt(bi) => Ok(bi),
             _ => Err(TryExtractFromError(format!(
                 "expected {:?}, found {:?}",
-                std::any::type_name::<Self>(),
+                core::any::type_name::<Self>(),
                 v
             ))),
         }

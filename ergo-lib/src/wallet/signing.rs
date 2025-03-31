@@ -6,16 +6,17 @@ use crate::chain::{
     ergo_state_context::ErgoStateContext,
     transaction::{unsigned::UnsignedTransaction, Transaction},
 };
+use alloc::rc::Rc;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
 use ergotree_interpreter::sigma_protocol::prover::hint::HintsBag;
 use ergotree_interpreter::sigma_protocol::sig_serializer::SigParsingError;
 use ergotree_ir::chain::ergo_box::ErgoBox;
 use ergotree_ir::serialization::SigmaSerializationError;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
-use std::rc::Rc;
-use std::sync::Arc;
 
 use crate::ergotree_ir::chain::ergo_box::BoxId;
-use crate::wallet::multi_sig::TransactionHintsBag;
+use crate::wallet::TransactionHintsBag;
 use ergotree_interpreter::eval::context::{Context, TxIoVec};
 use ergotree_interpreter::sigma_protocol::prover::ProverError;
 use ergotree_interpreter::sigma_protocol::prover::ProverResult;
@@ -262,6 +263,7 @@ pub fn sign_tx_input(
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
+#[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
     use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
@@ -291,12 +293,13 @@ mod tests {
     };
     use crate::wallet::secret_key::SecretKey;
     use crate::wallet::Wallet;
+    use alloc::rc::Rc;
+    use alloc::string::String;
+    use core::convert::TryFrom;
+    use core::convert::TryInto;
     use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
     use ergotree_ir::ergo_tree::ErgoTree;
     use ergotree_ir::mir::expr::Expr;
-    use std::convert::TryFrom;
-    use std::convert::TryInto;
-    use std::rc::Rc;
 
     fn verify_tx_proofs(
         tx: &Transaction,

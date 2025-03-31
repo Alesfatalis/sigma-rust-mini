@@ -1,9 +1,9 @@
 //! Wrapper for Scalar
 //! mainly for Arbitrary impl and JSON encoding
 
-use std::array::TryFromSliceError;
-use std::convert::TryFrom;
-use std::fmt::Formatter;
+use core::array::TryFromSliceError;
+use core::convert::TryFrom;
+use core::fmt::Formatter;
 
 use derive_more::From;
 use derive_more::Into;
@@ -72,8 +72,8 @@ impl TryFrom<Base16DecodedBytes> for Wscalar {
     }
 }
 
-impl std::fmt::Debug for Wscalar {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Wscalar {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.write_str("Wscalar:")?;
         f.write_str(&base16::encode_lower(&(*self.0.to_bytes())))
     }

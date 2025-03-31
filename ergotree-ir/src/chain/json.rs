@@ -1,8 +1,8 @@
 //! JSON serialization
 
-use std::fmt;
-use std::marker::PhantomData;
-use std::str::FromStr;
+use core::fmt;
+use core::marker::PhantomData;
+use core::str::FromStr;
 
 use serde::de;
 use serde::de::MapAccess;
@@ -32,7 +32,7 @@ pub fn t_as_string_or_struct<'de, T, D, E>(deserializer: D) -> Result<T, D::Erro
 where
     T: Deserialize<'de> + FromStr<Err = E>,
     D: Deserializer<'de>,
-    E: std::fmt::Display,
+    E: core::fmt::Display,
 {
     // This is a Visitor that forwards string types to T's `FromStr` impl and
     // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
@@ -44,7 +44,7 @@ where
     impl<'de, T, FromStrErr> Visitor<'de> for StringOrStruct<T>
     where
         T: Deserialize<'de> + FromStr<Err = FromStrErr>,
-        FromStrErr: std::fmt::Display,
+        FromStrErr: core::fmt::Display,
     {
         type Value = T;
 

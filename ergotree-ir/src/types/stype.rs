@@ -1,7 +1,8 @@
 //! SType hierarchy
 
-use std::convert::TryInto;
-use std::fmt::Debug;
+use alloc::vec::Vec;
+use core::convert::TryInto;
+use core::fmt::Debug;
 
 use impl_trait_for_tuples::impl_for_tuples;
 
@@ -10,6 +11,7 @@ use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::sigma_protocol::sigma_boolean::{ProveDhTuple, ProveDlog};
+use alloc::boxed::Box;
 use ergo_chain_types::EcPoint;
 
 use super::stuple::STuple;
@@ -77,8 +79,8 @@ impl From<STuple> for SType {
     }
 }
 
-impl std::fmt::Display for SType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for SType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             SType::SAny => write!(f, "Any"),
             SType::SUnit => write!(f, "Unit"),

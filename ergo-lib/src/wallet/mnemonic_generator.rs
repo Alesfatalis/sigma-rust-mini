@@ -1,5 +1,6 @@
 //! Mnemonic generation
 
+use alloc::{string::String, vec::Vec};
 use bitvec::prelude::*;
 use rand::RngCore;
 use sha2::{Digest, Sha256};

@@ -9,7 +9,7 @@ description = "ErgoTree IR, serialization"
 exclude = ["proptest-regressions/*"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 sigma-ser = { workspace = true }
@@ -18,7 +18,6 @@ ergo-chain-types = { workspace = true }
 k256 = { workspace = true }
 elliptic-curve = { workspace = true }
 thiserror = { workspace = true }
-lazy_static = { workspace = true }
 derive_more = { workspace = true }
 proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
@@ -28,24 +27,30 @@ num-bigint = { workspace = true }
 bounded-vec = { workspace = true, features = ["serde"] }
 num-traits = { workspace = true }
 num-derive = { workspace = true }
-num-integer = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
-num256 = "0.3.1"
+bnum = { version = "0.12.0", features = ["numtraits"] }
 impl-trait-for-tuples = "0.2.0"
-strum = "0.21"
-strum_macros = "0.21"
-miette = { workspace = true }
+miette = { workspace = true, optional = true }
+hashbrown = { workspace = true }
+core2 = { workspace = true }
+foldhash = { version = "0.1.3", default-features = false }
 
 [features]
-default = ["json", "arbitrary"]
-arbitrary = ["proptest", "proptest-derive", "ergo-chain-types/arbitrary"]
-json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
+default = ["json", "std"]
+arbitrary = ["std", "proptest", "proptest-derive", "ergo-chain-types/arbitrary"]
+json = [
+    "serde",
+    "serde_json",
+    "serde_with",
+    "bounded-vec/serde",
+    "ergo-chain-types/json",
+    "indexmap/serde",
+]
+std = ["core2/std", "dep:miette", "ergo-chain-types/std", "sigma-ser/std"]
 
 [dev-dependencies]
 sigma-test-util = { workspace = true }
-rand = { workspace = true }
 pretty_assertions = { workspace = true }
-expect-test = { workspace = true }

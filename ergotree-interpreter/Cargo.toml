@@ -9,40 +9,45 @@ description = "ErgoTree interpreter"
 exclude = ["proptest-regressions/*"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 sigma-util = { workspace = true }
 sigma-ser = { workspace = true }
 ergo-chain-types = { workspace = true }
 ergotree-ir = { workspace = true }
-indexmap = { workspace = true }
 k256 = { workspace = true }
 elliptic-curve = { workspace = true }
 blake2 = { workspace = true }
-rand = { workspace = true }
-lazy_static = { workspace = true }
+rand = { workspace = true, optional = true }
 thiserror = { workspace = true }
 derive_more = { workspace = true }
 num-traits = { workspace = true }
 base16 = { workspace = true }
 proptest-derive = { workspace = true, optional = true }
-bytes = { workspace = true }
 num-bigint = { workspace = true }
-bounded-vec = { workspace = true, features = ["serde"] }
+bounded-vec = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 serde_with = { workspace = true, optional = true }
 proptest = { workspace = true, optional = true }
-ergo_avltree_rust = "0.1.0"
 gf2_192 = { version = "^0.27.1", path = "../gf2_192" }
-miette = { workspace = true }
-hashbrown = "0.14.1"
+miette = { workspace = true, optional = true }
+core2 = { workspace = true }
 
 [features]
-default = ["json", "arbitrary"]
-json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
+json = [
+    "serde",
+    "serde_json",
+    "serde_with",
+    "bounded-vec/serde",
+    "ergotree-ir/json",
+    "ergo-chain-types/json",
+]
+default = ["json", "std"]
+std = ["rand", "miette", "ergotree-ir/std"]
 arbitrary = [
+    "std",
     "proptest",
     "proptest-derive",
     "ergotree-ir/arbitrary",

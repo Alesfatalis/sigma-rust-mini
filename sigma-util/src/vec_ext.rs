@@ -1,5 +1,5 @@
 //! Vec extensions
-
+use alloc::vec::Vec;
 /// Vec<i8> to Vec<u8> conversion
 pub trait FromVecI8 {
     /// Convert Vec<i8> to Vec<u8>

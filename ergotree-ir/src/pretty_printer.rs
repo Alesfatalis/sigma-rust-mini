@@ -1,8 +1,9 @@
 //! Pretty printer for ErgoTree IR
 
-use std::fmt::Write;
+use core::fmt::Write;
 
 mod print;
+use alloc::string::String;
 pub use print::Print;
 
 // TODO: extract to a separate module
@@ -17,7 +18,7 @@ pub trait Printer: Write {
     /// Get current indent
     fn get_indent(&self) -> usize;
     /// Print the current indent
-    fn print_indent(&mut self) -> std::fmt::Result {
+    fn print_indent(&mut self) -> core::fmt::Result {
         write!(self, "{:indent$}", "", indent = self.get_indent())
     }
 }
@@ -30,7 +31,7 @@ pub struct PosTrackingWriter {
 }
 
 impl Write for PosTrackingWriter {
-    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
         let len = s.len();
         self.current_pos += len;
         write!(self.print_buf, "{}", s)

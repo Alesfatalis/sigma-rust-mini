@@ -6,46 +6,53 @@ authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 repository.workspace = true
 edition.workspace = true
 description = "ErgoTree interpreter and wallet-like features for Ergo"
-exclude = [
-    "proptest-regressions/*"
-]
+exclude = ["proptest-regressions/*"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [dependencies]
-sigma-ser = { workspace = true }
-sigma-util = { workspace = true }
 ergo-chain-types = { workspace = true }
 ergotree-ir = { workspace = true }
 ergotree-interpreter = { workspace = true }
-indexmap = { workspace = true }
 base16 = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
 derive_more = { workspace = true }
 bounded-vec = { workspace = true }
-num-bigint = { workspace = true, features = ["serde"] }
 proptest-derive = {workspace = true, optional = true }
-k256 = { workspace = true }
 sha2 = { workspace = true }
 hmac = { version = "0.12" }
 pbkdf2 = "0.11"
-rand = { workspace = true }
+rand = { workspace = true, optional = true }
 bitvec = { workspace = true, optional = true }
-unicode-normalization = "0.1.19"
+unicode-normalization = { version = "0.1.19", default-features = false }
 lazy_static = { workspace = true }
 proptest = { workspace = true , optional = true }
 serde_with = { workspace = true, optional = true }
-itertools = { workspace = true }
-
+hashbrown = { workspace = true }
 
 [features]
-default = ["json", "arbitrary"]
-json = ["serde", "serde_json", "serde_with", "bounded-vec/serde"]
-arbitrary = ["proptest", "proptest-derive", "ergotree-ir/arbitrary", "ergo-chain-types/arbitrary", "ergotree-interpreter/arbitrary"]
-mnemonic_gen = ["bitvec"]
+default = ["std", "json"]
+std = ["rand", "ergotree-ir/std", "ergotree-interpreter/std"]
+json = [
+    "serde",
+    "serde_json",
+    "serde_with",
+    "bounded-vec/serde",
+    "ergotree-ir/json",
+    "ergotree-interpreter/json"
+]
+arbitrary = [
+    "std",
+    "proptest",
+    "proptest-derive",
+    "ergotree-ir/arbitrary",
+    "ergo-chain-types/arbitrary",
+    "ergotree-interpreter/arbitrary",
+]
+mnemonic_gen = ["bitvec", "rand"]
 
 [dev-dependencies]
 proptest = { workspace = true }
@@ -55,5 +62,11 @@ ergotree-interpreter = { workspace = true, features = ["arbitrary"] }
 sigma-test-util = { workspace = true }
 pretty_assertions = { workspace = true }
 bs58 = { workspace = true }
-byteorder = { workspace = true }
 expect-test = { workspace = true }
+
+# docs.rs-specific configuration
+[package.metadata.docs.rs]
+# document all features
+all-features = true
+# enable docsrs flag, which lets us enable doc_auto_cfg to mark feature-gated functionality in documentation
+rustdoc-args = ["--cfg", "docsrs"]

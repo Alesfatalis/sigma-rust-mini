@@ -1,5 +1,6 @@
 //! Unproven tree types
 
+extern crate derive_more;
 use super::dht_protocol::FirstDhTupleProverMessage;
 use super::proof_tree::ConjectureType;
 use super::proof_tree::ProofTree;
@@ -10,6 +11,7 @@ use super::wscalar::Wscalar;
 use super::{dlog_protocol::FirstDlogProverMessage, Challenge, FirstProverMessage};
 use crate::sigma_protocol::proof_tree::ProofTreeLeaf;
 use crate::sigma_protocol::SOUNDNESS_BYTES;
+use alloc::vec::Vec;
 use ergotree_ir::sigma_protocol::sigma_boolean::cand::Cand;
 use ergotree_ir::sigma_protocol::sigma_boolean::cor::Cor;
 use ergotree_ir::sigma_protocol::sigma_boolean::cthreshold::Cthreshold;
@@ -20,7 +22,6 @@ use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjectureItems;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use gf2_192::gf2_192poly::Gf2_192Poly;
 
-extern crate derive_more;
 use derive_more::From;
 
 /// Unproven trees
@@ -395,11 +396,13 @@ impl UnprovenDhTuple {
 /// Please note that "0" prefix is for a crypto tree. There are several kinds of trees during evaluation.
 /// Initial mixed tree (ergoTree) would have another prefix.
 #[derive(PartialEq, Eq, Debug, Clone)]
-#[cfg(feature = "json")]
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(
-    try_from = "crate::json::hint::NodePositionJson",
-    into = "crate::json::hint::NodePositionJson"
+#[cfg_attr(
+    feature = "json",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(
+        try_from = "crate::json::hint::NodePositionJson",
+        into = "crate::json::hint::NodePositionJson"
+    )
 )]
 #[cfg_attr(feature = "arbitrary", derive(proptest_derive::Arbitrary))]
 pub struct NodePosition {

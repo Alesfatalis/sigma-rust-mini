@@ -1,5 +1,8 @@
 //! Constant store for Sigma byte reader
 
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::mir::constant::{Constant, ConstantPlaceholder};
 
 /// Storage for constants used in ErgoTree constant segregation

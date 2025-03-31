@@ -6,12 +6,7 @@ authors = ["Denys Zadorozhnyi <denys@zadorozhnyi.com>"]
 repository.workspace = true
 edition.workspace = true
 description = "Ergo blockchain types"
-exclude = [
-    "proptest-regressions/*"
-]
-
-[lib]
-crate-type = ["cdylib", "rlib"]
+exclude = ["proptest-regressions/*"]
 
 [dependencies]
 thiserror = { workspace = true }
@@ -22,19 +17,17 @@ base16 = { workspace = true }
 base64 = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
-url = { workspace = true }
+url = { workspace = true, optional = true  }
 k256 = { workspace = true }
 elliptic-curve = { workspace = true }
-num-bigint = { workspace = true }
-byteorder = { workspace = true }
 serde_with = { workspace = true, optional = true }
 proptest = { workspace = true , optional = true }
 proptest-derive = {workspace = true, optional = true }
-num-traits = { workspace = true }
 
 [features]
-default = ["json"]
-arbitrary = ["proptest", "proptest-derive"]
+default = ["std", "json"]
+arbitrary = ["proptest", "proptest-derive", "std"]
 json = ["serde", "serde_json", "serde_with"]
+std = ["dep:url", "base16/std", "base64/std", "serde/std"]
 
 [dev-dependencies]

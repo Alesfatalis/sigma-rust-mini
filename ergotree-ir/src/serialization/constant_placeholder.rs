@@ -36,8 +36,10 @@ mod tests {
         constant_store::ConstantStore, sigma_byte_reader::SigmaByteReader,
         sigma_byte_writer::SigmaByteWriter,
     };
+
+    use alloc::vec::Vec;
+    use core2::io::Cursor;
     use proptest::prelude::*;
-    use std::io::Cursor;
 
     proptest! {
 

@@ -1,5 +1,6 @@
 //! ErgoTree header
 
+use alloc::string::{String, ToString};
 use derive_more::From;
 use thiserror::Error;
 
@@ -32,7 +33,7 @@ pub struct ErgoTreeHeader {
 
 impl ErgoTreeHeader {
     /// Serialization
-    pub fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), std::io::Error> {
+    pub fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> Result<(), core2::io::Error> {
         w.put_u8(self.serialized())
     }
     /// Deserialization

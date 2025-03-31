@@ -1,7 +1,9 @@
 //! IR expression
 
-use std::convert::TryFrom;
-use std::convert::TryInto;
+extern crate derive_more;
+use alloc::string::String;
+use core::convert::TryFrom;
+use core::convert::TryInto;
 
 use crate::types::stype::LiftIntoSType;
 use crate::types::stype::SType;
@@ -12,7 +14,6 @@ use super::constant::Literal;
 use super::constant::TryExtractFrom;
 use super::constant::TryExtractFromError;
 
-extern crate derive_more;
 use bounded_vec::BoundedVecOutOfBounds;
 use derive_more::From;
 use derive_more::TryInto;
@@ -79,7 +80,7 @@ impl<T: TryFrom<Expr>> TryExtractFrom<Expr> for T {
         let res: Result<Self, TryExtractFromError> = v.clone().try_into().map_err(|_| {
             TryExtractFromError(format!(
                 "Cannot extract {0:?} from {1:?}",
-                std::any::type_name::<T>(),
+                core::any::type_name::<T>(),
                 v
             ))
         });

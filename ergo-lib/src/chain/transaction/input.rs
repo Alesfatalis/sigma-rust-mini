@@ -11,8 +11,6 @@ use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::serialization::SigmaSerializeResult;
 
-#[cfg(feature = "json")]
-use crate::chain::json::context_extension::ContextExtensionSerde;
 use crate::wallet::box_selector::ErgoBoxId;
 #[cfg(feature = "json")]
 use serde::ser::SerializeStruct;
@@ -30,11 +28,7 @@ pub struct UnsignedInput {
     #[cfg_attr(feature = "json", serde(rename = "boxId"))]
     pub box_id: BoxId,
     /// user-defined variables to be put into context
-    #[cfg_attr(
-        feature = "json",
-        serde(rename = "extension",),
-        serde(with = "crate::chain::json::context_extension::ContextExtensionSerde")
-    )]
+    #[cfg_attr(feature = "json", serde(rename = "extension",))]
     pub extension: ContextExtension,
 }
 
@@ -46,10 +40,7 @@ impl Serialize for UnsignedInput {
     {
         let mut s = serializer.serialize_struct("UnsignedInput", 2)?;
         s.serialize_field("boxId", &self.box_id)?;
-        s.serialize_field(
-            "extension",
-            &ContextExtensionSerde::from(self.extension.clone()),
-        )?;
+        s.serialize_field("extension", &self.extension)?;
         s.end()
     }
 }
@@ -147,6 +138,7 @@ impl SigmaSerializable for Input {
 
 #[cfg(test)]
 #[allow(clippy::panic)]
+#[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
     use ergotree_ir::serialization::sigma_serialize_roundtrip;

@@ -30,6 +30,7 @@ impl From<(usize, usize)> for SourceSpan {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<SourceSpan> for miette::SourceSpan {
     fn from(value: SourceSpan) -> Self {
         miette::SourceSpan::new(value.offset.into(), value.length.into())

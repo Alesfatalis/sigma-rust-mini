@@ -1,6 +1,8 @@
 //! Code to implement `BoxValue` JSON encoding
 
-use std::convert::TryFrom;
+use core::convert::TryFrom;
+
+use alloc::string::String;
 
 use crate::chain::ergo_box::box_value::BoxValue;
 

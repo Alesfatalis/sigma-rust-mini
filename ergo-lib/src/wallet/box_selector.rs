@@ -2,8 +2,9 @@
 
 mod simple;
 
-use std::collections::HashMap;
+use hashbrown::HashMap;
 
+use alloc::vec::Vec;
 use bounded_vec::BoundedVec;
 use ergotree_ir::chain::ergo_box::box_value::BoxValue;
 use ergotree_ir::chain::ergo_box::BoxId;
@@ -293,8 +294,8 @@ pub mod arbitrary {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
+#[cfg(feature = "arbitrary")]
 mod tests {
-
     use ergotree_ir::chain::ergo_box::box_value::BoxValue;
     use ergotree_ir::chain::ergo_box::BoxTokens;
     use ergotree_ir::chain::token::Token;

@@ -6,9 +6,10 @@ use crate::serialization::{
 };
 use crate::types::stuple;
 use crate::types::stype::SType;
+use alloc::vec::Vec;
+use core::convert::TryInto;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use std::convert::TryInto;
 
 #[allow(non_camel_case_types)]
 #[allow(clippy::upper_case_acronyms)] // to differentiate from similarly named SType enum variants
@@ -315,11 +316,11 @@ impl SType {
 /// - emitting typeCode of each node (see special case for collections below)
 /// - then recursively serializing subtrees from left to right on each level
 /// - for each collection of primitive type there is special type code to emit single byte instead of two bytes
-/// Types code intervals
+///   Types code intervals
 /// - (1 .. MaxPrimTypeCode)  // primitive types
 /// - (CollectionTypeCode .. CollectionTypeCode + MaxPrimTypeCode) // collections of primitive types
 /// - (MaxCollectionTypeCode ..)  // Other types
-/// Collection of non-primitive type is serialized as (CollectionTypeCode, serialize(elementType))
+///   Collection of non-primitive type is serialized as (CollectionTypeCode, serialize(elementType))
 impl SigmaSerializable for SType {
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         // for reference see http://github.com/ScorexFoundation/sigmastate-interpreter/blob/25251c1313b0131835f92099f02cef8a5d932b5e/sigmastate/src/main/scala/sigmastate/serialization/TypeSerializer.scala#L25-L25

@@ -1,6 +1,6 @@
-use std::convert::TryFrom;
-use std::num::ParseIntError;
-use std::str::FromStr;
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
 
 use ergo_chain_types::Base16DecodedBytes;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
@@ -13,6 +13,9 @@ use crate::sigma_protocol::prover::hint::SimulatedSecretProof;
 use crate::sigma_protocol::sig_serializer::parse_sig_compute_challenges;
 use crate::sigma_protocol::sig_serializer::SigParsingError;
 use crate::sigma_protocol::unproven_tree::NodePosition;
+
+use core::num::ParseIntError;
+use core::str::FromStr;
 
 #[derive(Deserialize, Serialize)]
 pub struct NodePositionJson(String);

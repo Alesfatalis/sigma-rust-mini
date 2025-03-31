@@ -1,5 +1,7 @@
 //! ErgoTree IR
 
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 // Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
@@ -21,18 +23,19 @@
 #![deny(clippy::unreachable)]
 #![deny(clippy::panic)]
 
-pub mod chain;
-mod utils;
-pub mod wallet;
-
-// Re-exported types from dependencies
-
+#[macro_use]
+extern crate alloc;
 /// Ergo blockchain types
 pub extern crate ergo_chain_types;
 /// ErgoTree interpreter
 pub extern crate ergotree_interpreter;
 /// ErgoTree, MIR (Middle-level Internal Representation)
 pub extern crate ergotree_ir;
+pub mod chain;
+mod utils;
+pub mod wallet;
+
+// Re-exported types from dependencies
 
 /// Selectively exposed types
 pub use utils::ArrLength;

@@ -1,11 +1,13 @@
+extern crate derive_more;
 use ergotree_ir::mir::expr::Expr;
 
-extern crate derive_more;
 use derive_more::{From, Into};
 
 #[derive(PartialEq, Eq, Debug, Clone, From, Into)]
 pub struct Cost(u32);
 
+// Costing types will be reintroduced later
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Costs {
     pub eq_const_size: Cost,

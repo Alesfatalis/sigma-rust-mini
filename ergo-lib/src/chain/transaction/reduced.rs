@@ -1,7 +1,7 @@
 //! Represent `reduced` transaction, i.e. unsigned transaction where each unsigned input
 //! is augmented with ReducedInput which contains a script reduction result.
 
-use std::rc::Rc;
+use alloc::rc::Rc;
 
 use ergotree_interpreter::eval::reduce_to_crypto;
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
@@ -180,6 +180,7 @@ pub mod arbitrary {
 
 #[cfg(test)]
 #[allow(clippy::panic)]
+#[cfg(feature = "arbitrary")]
 mod tests {
     use super::*;
 

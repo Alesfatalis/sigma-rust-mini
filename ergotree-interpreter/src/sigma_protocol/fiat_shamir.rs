@@ -1,10 +1,16 @@
 //! Fiat-Shamir transformation
 
-use super::crypto_utils::secure_random_bytes;
 use super::proof_tree::ProofTreeKind;
 use crate::sigma_protocol::unchecked_tree::{UncheckedConjecture, UncheckedTree};
 use crate::sigma_protocol::unproven_tree::{UnprovenConjecture, UnprovenTree};
 use crate::sigma_protocol::ProverMessage;
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::array::TryFromSliceError;
+use core::convert::{TryFrom, TryInto};
+use core::fmt::Formatter;
 use ergo_chain_types::{Base16DecodedBytes, Base16EncodedBytes};
 use ergotree_ir::ergo_tree::{ErgoTree, ErgoTreeHeader};
 use ergotree_ir::mir::expr::Expr;
@@ -13,9 +19,6 @@ use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
 use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::{SigmaBoolean, SigmaProp};
 use sigma_util::hash::blake2b256_hash;
-use std::array::TryFromSliceError;
-use std::convert::{TryFrom, TryInto};
-use std::fmt::Formatter;
 use thiserror::Error;
 
 #[cfg(feature = "arbitrary")]
@@ -38,9 +41,10 @@ use super::SOUNDNESS_BYTES;
 pub struct FiatShamirHash(pub Box<[u8; SOUNDNESS_BYTES]>);
 
 impl FiatShamirHash {
+    #[cfg(feature = "std")]
     pub fn secure_random() -> Self {
         #[allow(clippy::unwrap_used)] // since we set the correct size
-        secure_random_bytes(SOUNDNESS_BYTES)
+        super::crypto_utils::secure_random_bytes(SOUNDNESS_BYTES)
             .as_slice()
             .try_into()
             .unwrap()
@@ -85,8 +89,8 @@ impl TryFrom<&[u8]> for FiatShamirHash {
     }
 }
 
-impl std::fmt::Debug for FiatShamirHash {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for FiatShamirHash {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.write_str("FSH:")?;
         f.write_str(&base16::encode_lower(&(*self.0)))
     }
@@ -95,10 +99,10 @@ impl std::fmt::Debug for FiatShamirHash {
 /// Invalid byte array size
 #[derive(Error, Debug)]
 #[error("Invalid byte array size ({0})")]
-pub struct FiatShamirHashError(std::array::TryFromSliceError);
+pub struct FiatShamirHashError(core::array::TryFromSliceError);
 
-impl From<std::array::TryFromSliceError> for FiatShamirHashError {
-    fn from(err: std::array::TryFromSliceError) -> Self {
+impl From<core::array::TryFromSliceError> for FiatShamirHashError {
+    fn from(err: core::array::TryFromSliceError) -> Self {
         FiatShamirHashError(err)
     }
 }
@@ -122,8 +126,14 @@ pub(crate) fn fiat_shamir_tree_to_bytes(
 pub enum FiatShamirTreeSerializationError {
     #[error("empty commitment in leaf with proposition {0:?} ")]
     EmptyCommitmentInLeaf(SigmaBoolean),
-    #[error("io errro {0:?} ")]
-    IoError(#[from] std::io::Error),
+    #[error("io errror {0:?} ")]
+    IoError(String),
+}
+
+impl From<core2::io::Error> for FiatShamirTreeSerializationError {
+    fn from(error: core2::io::Error) -> FiatShamirTreeSerializationError {
+        FiatShamirTreeSerializationError::IoError(error.to_string())
+    }
 }
 
 fn fiat_shamir_write_bytes<W: SigmaByteWrite>(

@@ -1,5 +1,6 @@
 //! Sigma serialization
 
+#![cfg_attr(not(feature = "std"), no_std)]
 // Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
@@ -9,13 +10,14 @@
 #![deny(dead_code)]
 #![deny(unused_imports)]
 #![deny(missing_docs)]
-#![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
 #![deny(clippy::wildcard_enum_match_arm)]
+
+extern crate alloc;
 
 /// ScoreX Serialization
 mod scorex_serialize;

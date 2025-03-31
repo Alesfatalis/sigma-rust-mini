@@ -1,6 +1,7 @@
 //! Implementation of finite field arithmetic and polynomial interpolation/evaluation in Galois
 //! field GF(2^192).
 
+#![no_std]
 // Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
@@ -18,6 +19,8 @@
 #![deny(clippy::todo)]
 #![deny(clippy::unimplemented)]
 #![deny(clippy::panic)]
+
+extern crate alloc;
 
 use derive_more::From;
 use gf2_192poly::Gf2_192PolyError;

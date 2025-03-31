@@ -1,5 +1,6 @@
 //! Ergo blockchain types
 
+#![cfg_attr(not(feature = "std"), no_std)]
 // Coding conventions
 #![forbid(unsafe_code)]
 #![deny(non_upper_case_globals)]
@@ -17,6 +18,9 @@
 #![deny(clippy::unimplemented)]
 #![deny(clippy::unreachable)]
 #![deny(clippy::panic)]
+
+#[macro_use]
+extern crate alloc;
 
 mod base16_bytes;
 mod digest32;

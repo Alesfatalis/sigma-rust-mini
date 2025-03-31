@@ -1,13 +1,16 @@
 //! Builder for an UnsignedTransaction
 
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::convert::TryInto;
 use ergotree_interpreter::eval::context::TxIoVec;
 use ergotree_interpreter::sigma_protocol::prover::ContextExtension;
 use ergotree_ir::chain::token::TokenAmount;
 use ergotree_ir::chain::token::TokenAmountError;
 use ergotree_ir::ergo_tree::ErgoTree;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::convert::TryInto;
+use hashbrown::HashMap;
+use hashbrown::HashSet;
 
 use bounded_vec::BoundedVecOutOfBounds;
 use ergotree_interpreter::sigma_protocol;
@@ -377,10 +380,11 @@ fn check_unused_token_burn_permit(
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::panic)]
+#[cfg(feature = "arbitrary")]
 mod tests {
+    use core::convert::TryInto;
 
-    use std::convert::TryInto;
-
+    use ergotree_ir::chain::ergo_box::arbitrary::ArbBoxParameters;
     use ergotree_ir::chain::ergo_box::box_value::checked_sum;
     use ergotree_ir::chain::ergo_box::ErgoBox;
     use ergotree_ir::chain::ergo_box::NonMandatoryRegisters;
@@ -678,9 +682,10 @@ mod tests {
 
     #[test]
     fn test_tokens_balance_error() {
-        let input_box = force_any_val_with::<ErgoBox>(
-            (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
-        );
+        let input_box = force_any_val_with::<ErgoBox>(ArbBoxParameters {
+            value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+            ..Default::default()
+        });
         let token_pair = Token {
             token_id: force_any_val_with::<TokenId>(ArbTokenIdParam::Arbitrary),
             amount: force_any_val::<TokenAmount>(),
@@ -713,9 +718,10 @@ mod tests {
 
     #[test]
     fn test_balance_error_not_enough_inputs() {
-        let input_box = force_any_val_with::<ErgoBox>(
-            (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
-        );
+        let input_box = force_any_val_with::<ErgoBox>(ArbBoxParameters {
+            value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+            ..Default::default()
+        });
         // tx fee on top of this leads to overspending
         let out_box_value = input_box.value();
         let mut box_builder =
@@ -750,9 +756,10 @@ mod tests {
 
     #[test]
     fn test_balance_error_not_enough_outputs() {
-        let input_box = force_any_val_with::<ErgoBox>(
-            (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
-        );
+        let input_box = force_any_val_with::<ErgoBox>(ArbBoxParameters {
+            value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(),
+            ..Default::default()
+        });
         // spend not all inputs
         let out_box_value = input_box
             .value()
@@ -827,8 +834,8 @@ mod tests {
         #![proptest_config(ProptestConfig::with_cases(16))]
 
         #[test]
-        fn test_build_tx(inputs in vec(any_with::<ErgoBox>((BoxValue::MIN_RAW * 5000 .. BoxValue::MIN_RAW * 10000).into()), 1..10),
-                         outputs in vec(any_with::<ErgoBoxCandidate>((BoxValue::MIN_RAW * 1000 ..BoxValue::MIN_RAW * 2000).into()), 1..2),
+        fn test_build_tx(inputs in vec(any_with::<ErgoBox>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 1..10),
+                         outputs in vec(any_with::<ErgoBoxCandidate>(ArbBoxParameters { value_range: (BoxValue::MIN_RAW * 5000..BoxValue::MIN_RAW * 10000).into(), ..Default::default() }), 1..2),
                          change_address in any::<Address>(),
                          miners_fee in any_with::<BoxValue>((BoxValue::MIN_RAW * 100..BoxValue::MIN_RAW * 200).into()),
                          data_inputs in vec(any::<DataInput>(), 0..2),

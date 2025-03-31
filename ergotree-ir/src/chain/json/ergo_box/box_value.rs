@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod tests {
     use crate::chain::ergo_box::box_value::BoxValue;
-    use std::convert::TryInto;
+    use core::convert::TryInto;
 
     #[test]
     fn parse_value_as_str() {

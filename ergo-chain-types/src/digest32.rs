@@ -1,14 +1,17 @@
 //! Digest types for various sizes
 
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::convert::TryInto;
+use core::fmt::Formatter;
 use sigma_ser::vlq_encode::ReadSigmaVlqExt;
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 use sigma_ser::ScorexParsingError;
 use sigma_ser::ScorexSerializable;
 use sigma_ser::ScorexSerializeResult;
 use sigma_util::AsVecI8;
-use std::convert::TryFrom;
-use std::convert::TryInto;
-use std::fmt::Formatter;
 use thiserror::Error;
 
 /// N-bytes array in a box. `Digest32` is most type synonym.
@@ -47,14 +50,14 @@ impl<const N: usize> Digest<N> {
     }
 }
 
-impl<const N: usize> std::fmt::Debug for Digest<N> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl<const N: usize> core::fmt::Debug for Digest<N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         base16::encode_lower(&(self.0)).fmt(f)
     }
 }
 
-impl<const N: usize> std::fmt::Display for Digest<N> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl<const N: usize> core::fmt::Display for Digest<N> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         base16::encode_lower(&(self.0)).fmt(f)
     }
 }
@@ -149,25 +152,49 @@ impl AsRef<[u8]> for Digest32 {
 #[derive(Error, Debug)]
 pub enum DigestNError {
     /// error decoding from Base16
+    #[cfg(feature = "std")]
     #[error("error decoding from Base16: {0}")]
     Base16DecodingError(#[from] base16::DecodeError),
+    /// error decoding from Base16
+    #[cfg(not(feature = "std"))]
+    #[error("error decoding from Base16")]
+    Base16DecodingError,
     /// Invalid byte array size
     #[error("Invalid byte array size ({0})")]
-    InvalidSize(#[from] std::array::TryFromSliceError),
+    InvalidSize(#[from] core::array::TryFromSliceError),
     /// error decoding from Base64
+    #[cfg(feature = "std")]
     #[error("error decoding from Base64: {0}")]
     Base64DecodingError(#[from] base64::DecodeError),
+    /// error decoding from Base64
+    #[cfg(not(feature = "std"))]
+    #[error("error decoding from Base64")]
+    Base64DecodingError,
+}
+
+/// both base16 and base64 don't implement core::error::Error for their error types yet, so we can't use them in thiserror in no_std contexts
+#[cfg(not(feature = "std"))]
+impl From<base16::DecodeError> for DigestNError {
+    fn from(_: base16::DecodeError) -> Self {
+        Self::Base16DecodingError
+    }
+}
+
+#[cfg(not(feature = "std"))]
+impl From<base64::DecodeError> for DigestNError {
+    fn from(_: base64::DecodeError) -> Self {
+        Self::Base64DecodingError
+    }
 }
 
 /// Arbitrary
 #[allow(clippy::unwrap_used)]
 #[cfg(feature = "arbitrary")]
 pub(crate) mod arbitrary {
-
     use super::Digest;
+    use core::convert::TryInto;
     use proptest::prelude::{Arbitrary, BoxedStrategy};
     use proptest::{collection::vec, prelude::*};
-    use std::convert::TryInto;
 
     impl<const N: usize> Arbitrary for Digest<N> {
         type Parameters = ();

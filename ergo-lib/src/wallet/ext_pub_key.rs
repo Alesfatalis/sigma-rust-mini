@@ -1,6 +1,7 @@
 //! Extended public key operations according to BIP-32
-use std::convert::TryInto;
+use core::convert::TryInto;
 
+use alloc::string::String;
 use ergo_chain_types::EcPoint;
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_ir::chain::address::Address;

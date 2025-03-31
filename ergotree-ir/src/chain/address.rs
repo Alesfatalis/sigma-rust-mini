@@ -12,10 +12,14 @@ use crate::sigma_protocol::sigma_boolean::SigmaBoolean;
 use crate::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
 use crate::sigma_protocol::sigma_boolean::SigmaProp;
 use crate::types::stype::SType;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
+
 use ergo_chain_types::EcPoint;
 
+use core::convert::{TryFrom, TryInto};
 use sigma_util::hash::blake2b256_hash;
-use std::convert::{TryFrom, TryInto};
 use thiserror::Error;
 
 /**
@@ -25,7 +29,7 @@ use thiserror::Error;
  * - Integrity of an address could be checked., as it is incorporating a checksum.
  * - A prefix of address is showing network and an address type.
  * - An address is using an encoding (namely, Base58) which is avoiding similarly l0Oking characters, friendly to
- * double-clicking and line-breaking in emails.
+ *   double-clicking and line-breaking in emails.
  *
  *
  *
@@ -454,8 +458,8 @@ pub(crate) mod arbitrary {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::panic)]
+#[cfg(feature = "arbitrary")]
 mod tests {
-
     use super::*;
     use proptest::prelude::*;
 

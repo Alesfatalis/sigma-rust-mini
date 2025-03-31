@@ -2,6 +2,8 @@
 
 use super::wscalar::Wscalar;
 use super::ProverMessage;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use ergo_chain_types::EcPoint;
 use ergotree_ir::serialization::SigmaSerializable;
 
@@ -46,14 +48,11 @@ pub struct SecondDhTupleProverMessage {
 
 /// Interactive prover
 pub mod interactive_prover {
-
-    use std::ops::Mul;
+    use core::ops::Mul;
 
     use super::*;
-    use crate::sigma_protocol::crypto_utils;
     use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::Challenge;
-    use ergotree_ir::sigma_protocol::dlog_group;
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
     use k256::Scalar;
 
@@ -61,13 +60,17 @@ pub mod interactive_prover {
     /// For every leaf marked “simulated”, use the simulator of the sigma protocol for that leaf
     /// to compute the commitment "a" and the response "z", given the challenge "e" that
     /// is already stored in the leaf
+    #[cfg(feature = "std")]
     pub(crate) fn simulate(
         public_input: &ProveDhTuple,
         challenge: &Challenge,
     ) -> (FirstDhTupleProverMessage, SecondDhTupleProverMessage) {
         use ergo_chain_types::ec_point::exponentiate;
+        use ergotree_ir::sigma_protocol::dlog_group;
         //SAMPLE a random z <- Zq
-        let z = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+        let z = dlog_group::random_scalar_in_group_range(
+            crate::sigma_protocol::crypto_utils::secure_rng(),
+        );
 
         // COMPUTE a = g^z*u^(-e) and b = h^z*v^{-e}  (where -e here means -e mod q)
         let e: Scalar = challenge.clone().into();
@@ -88,10 +91,14 @@ pub mod interactive_prover {
     /// For every leaf marked “real”, use the first prover step of the sigma protocol for
     /// that leaf to compute the necessary randomness "r" and the commitment "a"
     ///
-    /// In this case (DH tuple) "a" is also a tuple
+    /// In this case (DH tuple) "a" is also a
+    #[cfg(feature = "std")]
     pub fn first_message(public_input: &ProveDhTuple) -> (Wscalar, FirstDhTupleProverMessage) {
         use ergo_chain_types::ec_point::exponentiate;
-        let r = dlog_group::random_scalar_in_group_range(crypto_utils::secure_rng());
+        use ergotree_ir::sigma_protocol::dlog_group;
+        let r = dlog_group::random_scalar_in_group_range(
+            crate::sigma_protocol::crypto_utils::secure_rng(),
+        );
         let a = exponentiate(&public_input.g, &r);
         let b = exponentiate(&public_input.h, &r);
         (r.into(), FirstDhTupleProverMessage::new(a, b))

@@ -27,8 +27,9 @@ jobs:
       - name: Build ergo-lib
         uses: actions-rs/cargo@v1
         with:
-          command: build
-          args: --no-default-features --manifest-path ergo-lib/Cargo.toml
+          use-cross: true
+          command: rustc
+          args: --target thumbv7m-none-eabi --no-default-features --manifest-path ergo-lib/Cargo.toml --crate-type rlib
 
   test:
     name: Tests on ${{ matrix.os }}

@@ -282,7 +282,7 @@ impl Default for Gf2_192 {
     }
 }
 
-impl std::ops::Add for Gf2_192 {
+impl core::ops::Add for Gf2_192 {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
         let mut word = [0, 0, 0];
@@ -293,7 +293,7 @@ impl std::ops::Add for Gf2_192 {
     }
 }
 
-impl std::ops::Mul for Gf2_192 {
+impl core::ops::Mul for Gf2_192 {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self {
@@ -666,6 +666,8 @@ static POW_TABLE_2: [[i64; 192]; 7]  = [
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use alloc::vec;
+    use alloc::vec::Vec;
     use rand::{thread_rng, Rng};
 
     #[derive(PartialEq, Eq, Clone)]
@@ -676,7 +678,7 @@ mod tests {
     impl GF2Slow {
         fn equals(e: &GF2Slow, that: &[i64]) -> bool {
             let mut i = 0;
-            while i < std::cmp::min(e.x.len(), that.len()) {
+            while i < core::cmp::min(e.x.len(), that.len()) {
                 if e.x[i] != that[i] {
                     return false;
                 }
@@ -701,7 +703,7 @@ mod tests {
 
         #[allow(clippy::needless_range_loop)]
         fn mul_bits(a: &[i64], b: &[i64]) -> GF2Slow {
-            let mut c: Vec<_> = std::iter::repeat(0).take(a.len() + b.len()).collect();
+            let mut c: Vec<_> = core::iter::repeat(0).take(a.len() + b.len()).collect();
 
             for i in 0..a.len() {
                 for i1 in 0..64 {
@@ -740,7 +742,7 @@ mod tests {
     impl Modulus {
         fn new(sparse_modulus: &[i32]) -> Modulus {
             let degree = sparse_modulus[0];
-            let mut offset: Vec<_> = std::iter::repeat(0).take(sparse_modulus.len()).collect();
+            let mut offset: Vec<_> = core::iter::repeat(0).take(sparse_modulus.len()).collect();
             for i in 1..sparse_modulus.len() {
                 offset[i] = degree - sparse_modulus[i];
             }
@@ -753,7 +755,7 @@ mod tests {
     static PENTANOMIAL: [i32; 5] = [192, 7, 2, 1, 0];
 
     fn generate_test_values() -> Vec<Gf2_192> {
-        let mut test_values: Vec<[i64; 3]> = std::iter::repeat([0, 0, 0]).take(250).collect();
+        let mut test_values: Vec<[i64; 3]> = core::iter::repeat([0, 0, 0]).take(250).collect();
         let mut rng = thread_rng();
 
         // Test single 1s in every bit position but last

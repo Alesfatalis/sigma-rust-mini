@@ -1,6 +1,7 @@
-use std::convert::TryFrom;
+use core::convert::TryFrom;
 
 use super::{challenge::Challenge, fiat_shamir::FiatShamirHash, SOUNDNESS_BYTES};
+use alloc::{boxed::Box, vec::Vec};
 use gf2_192::{
     gf2_192::Gf2_192,
     gf2_192poly::{CoefficientsByteRepr, Gf2_192Poly},

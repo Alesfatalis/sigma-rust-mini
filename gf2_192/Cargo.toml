@@ -9,10 +9,12 @@ edition.workspace = true
 
 [dependencies]
 derive_more = { workspace = true }
-rand = { workspace = true }
 thiserror = { workspace = true }
 proptest-derive = { workspace = true, optional = true }
 proptest = { workspace = true , optional = true }
+
+[dev-dependencies]
+rand = { workspace = true }
 
 [features]
 arbitrary = ["proptest", "proptest-derive"]

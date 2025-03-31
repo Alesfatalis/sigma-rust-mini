@@ -11,15 +11,20 @@ use crate::serialization::{
 };
 use crate::sigma_protocol::sigma_boolean::ProveDlog;
 use crate::types::stype::SType;
-use io::Cursor;
+
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec;
+use alloc::vec::Vec;
 use sigma_ser::vlq_encode::ReadSigmaVlqExt;
 use sigma_ser::vlq_encode::WriteSigmaVlqExt;
 
 use crate::serialization::constant_store::ConstantStore;
+use core::convert::TryFrom;
+use core2::io;
+use core2::io::Read;
 use derive_more::From;
-use std::convert::TryFrom;
-use std::io;
-use std::io::Read;
+use io::Cursor;
 use thiserror::Error;
 
 mod tree_header;
@@ -40,7 +45,7 @@ impl ParsedErgoTree {
         let mut new_constants = self.constants.clone();
         if let Some(old_constant) = self.constants.get(index) {
             if constant.tpe == old_constant.tpe {
-                let _ = std::mem::replace(&mut new_constants[index], constant);
+                let _ = core::mem::replace(&mut new_constants[index], constant);
                 Ok(Self {
                     constants: new_constants,
                     ..self
@@ -446,8 +451,8 @@ impl TryFrom<ErgoTree> for ProveDlog {
     }
 }
 
-impl From<std::io::Error> for ErgoTreeError {
-    fn from(e: std::io::Error) -> Self {
+impl From<core2::io::Error> for ErgoTreeError {
+    fn from(e: core2::io::Error) -> Self {
         ErgoTreeError::IoError(e.to_string())
     }
 }
@@ -455,7 +460,6 @@ impl From<std::io::Error> for ErgoTreeError {
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 pub(crate) mod arbitrary {
-
     use crate::mir::expr::arbitrary::ArbExprParams;
 
     use super::*;

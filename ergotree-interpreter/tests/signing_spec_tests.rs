@@ -1,3 +1,6 @@
+extern crate alloc;
+use alloc::rc::Rc;
+use core::convert::TryInto;
 use ergotree_interpreter::eval::context::Context;
 use ergotree_interpreter::sigma_protocol::private_input::DlogProverInput;
 use ergotree_interpreter::sigma_protocol::verifier::{TestVerifier, Verifier};
@@ -6,8 +9,6 @@ use ergotree_ir::serialization::SigmaSerializable;
 use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
 use num_bigint::BigUint;
 use sigma_test_util::force_any_val;
-use std::convert::TryInto;
-use std::rc::Rc;
 
 #[test]
 fn sig_test_vector_provedlog() {

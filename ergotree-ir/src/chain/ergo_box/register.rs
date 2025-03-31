@@ -8,9 +8,14 @@ use crate::serialization::SigmaParsingError;
 use crate::serialization::SigmaSerializable;
 use crate::serialization::SigmaSerializationError;
 use crate::serialization::SigmaSerializeResult;
+
+use alloc::string::ToString;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::convert::TryInto;
 use ergo_chain_types::Base16EncodedBytes;
-use std::convert::TryInto;
-use std::{collections::HashMap, convert::TryFrom};
+use hashbrown::HashMap;
 use thiserror::Error;
 
 mod id;
@@ -41,8 +46,8 @@ impl NonMandatoryRegisters {
     }
 
     /// Create new from map
-    pub fn new(
-        regs: HashMap<NonMandatoryRegisterId, Constant>,
+    pub fn new<I: IntoIterator<Item = (NonMandatoryRegisterId, Constant)>>(
+        regs: I,
     ) -> Result<NonMandatoryRegisters, NonMandatoryRegistersError> {
         NonMandatoryRegisters::try_from(
             regs.into_iter()
@@ -208,6 +213,31 @@ impl TryFrom<HashMap<NonMandatoryRegisterId, RegisterValue>> for NonMandatoryReg
     }
 }
 
+#[cfg(feature = "std")]
+impl TryFrom<std::collections::HashMap<NonMandatoryRegisterId, RegisterValue>>
+    for NonMandatoryRegisters
+{
+    type Error = NonMandatoryRegistersError;
+    fn try_from(
+        reg_map: std::collections::HashMap<NonMandatoryRegisterId, RegisterValue>,
+    ) -> Result<Self, Self::Error> {
+        let regs_num = reg_map.len();
+        if regs_num > NonMandatoryRegisters::MAX_SIZE {
+            Err(NonMandatoryRegistersError::InvalidSize(regs_num))
+        } else {
+            let mut res: Vec<RegisterValue> = vec![];
+            NonMandatoryRegisterId::REG_IDS
+                .iter()
+                .take(regs_num)
+                .try_for_each(|reg_id| match reg_map.get(reg_id) {
+                    Some(v) => Ok(res.push(v.clone())),
+                    None => Err(NonMandatoryRegistersError::NonDenselyPacked(*reg_id as u8)),
+                })?;
+            Ok(NonMandatoryRegisters(res))
+        }
+    }
+}
+
 #[cfg(feature = "json")]
 impl TryFrom<HashMap<NonMandatoryRegisterId, crate::chain::json::ergo_box::ConstantHolder>>
     for NonMandatoryRegisters
@@ -273,9 +303,12 @@ pub(crate) mod arbitrary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "arbitrary")]
     use crate::serialization::sigma_serialize_roundtrip;
+    #[cfg(feature = "arbitrary")]
     use proptest::prelude::*;
 
+    #[cfg(feature = "arbitrary")]
     proptest! {
 
         #[test]

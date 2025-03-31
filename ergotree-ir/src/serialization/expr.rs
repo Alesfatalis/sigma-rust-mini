@@ -269,7 +269,6 @@ mod tests {
         let p2s_addr_str = "HfdbQC2Zwr5vfAUxdmjmX6b3TxQbq5w764pwsz9LLKyZVhv7SpifLB22PieCgvzSaFLomv8HNr9dxxQSSYaQg6ZyFL37nPfuVib3hVL8h42jajp754NXGqv1s4eKcbPsKkBMeTmYVSSGrpnZHzjqvcT4oN8rqKGUtLVXHs4QKyBwwNQKS5KNC8DLkdvHUQRNv5r8pCJ6ehTi31h1rfLVTsaMhAeDcYCs1uS7YMXk3msfH36krAskv8TgApoFJ1DarszwiacTuE1o4N6o4PJJifAgJ1WH4XuGRieYE1k3fo631benRDQw9nQ49p4oqAda5aXTNmabAsfCgAR8jbmUzzi3UCyYJgRUtXp7ijaGfr6o3hXd5VHDZe4gM6Vw4Ly3s881WZX2WWNedrXNqKKMVXKk55jbgn3ZmFpZiLtvPHSBCG7ULyARrTz2rAUC16StdYBqPuhHpRKEx3QYeFTYJGcMbsMGompAkCxG37X7ZVs7m7xCpPuP3AqxWtWdxkTzw5FCHALsu6ZD334n8mFgn9kiif4tbShpBo1AJu6dP22XvPU3S93q5LuNaXx6d7u5VFrpQKSN6WnhkU4LUfh3t8YU1ZBATrQDGRkaji59pqoNDuwVSfn7g1UhcMWdMnwzrCNNq1jsX2KrkX7o81aS7LEmz6xAySdyvubGh51oXNd2cmgbJ9at2Tp3hNi9FwWG5iEk882AZ7gby6QktknAwyaw9CL5qdodeh4t659H42SoqK2ATtfrZgjU5b5pYAzNp9EjFHCKkYxTo7t5G1vHHZUXjTbkzc22ggJdH3BvZYEcdQtUCLbEFJSCiMp2RjxEmyh";
         let encoder = AddressEncoder::new(NetworkPrefix::Mainnet);
         let addr = encoder.parse_address_from_str(p2s_addr_str).unwrap();
-        let script = addr.script().unwrap().proposition().unwrap();
-        dbg!(&script);
+        addr.script().unwrap().proposition().unwrap();
     }
 }
