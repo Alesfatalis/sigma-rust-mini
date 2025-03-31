@@ -139,7 +139,7 @@ pub enum TxValidationError {
     /// Sum of ERG in outputs has overflowed
     OutputSumOverflow,
     #[error("Unique inputs: {0}, actual inputs: {1}")]
-    /// The transaction is attempting to spend the same [`BoxId`] twice
+    /// The transaction is attempting to spend the same [`ergotree_ir::chain::ergo_box::BoxId`] twice
     DoubleSpend(usize, usize),
 }
 
