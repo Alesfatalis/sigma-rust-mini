@@ -10,12 +10,14 @@ use alloc::vec::Vec;
 use bounded_vec::BoundedVec;
 use ergo_chain_types::blake2b256_hash;
 
+use crate::wallet::signing::ErgoTransaction;
 use core::convert::TryInto;
 use ergotree_ir::chain::ergo_box::ErgoBoxCandidate;
 use ergotree_ir::chain::token::TokenId;
 use ergotree_ir::chain::tx_id::TxId;
 use ergotree_ir::chain::IndexSet;
 use ergotree_ir::serialization::SigmaSerializationError;
+use thiserror::Error;
 
 /// Unsigned (inputs without proofs) transaction
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
@@ -106,6 +108,39 @@ impl UnsignedTransaction {
     pub fn distinct_token_ids(&self) -> IndexSet<TokenId> {
         distinct_token_ids(self.output_candidates.clone())
     }
+
+    /// Stateless transaction validation (no blockchain context) for a transaction
+    /// Returns [`Ok(())`] if validation has succeeded or returns [`TxValidationError`]
+    pub fn validate_stateless(&self) -> Result<(), TxValidationError> {
+        // Note that we don't need to check if inputs/data inputs/outputs are >= 1 <= 32767 here since BoundedVec takes care of that
+        let inputs = self.inputs.iter().map(|input| input.box_id);
+        let outputs = self.outputs();
+
+        outputs
+            .iter()
+            .try_fold(0i64, |a, b| a.checked_add(b.value.as_i64()))
+            .ok_or(TxValidationError::OutputSumOverflow)?;
+
+        // Check if there are no double-spends in input (one BoxId being spent more than once)
+        let len = inputs.len();
+        let unique_count = inputs.collect::<hashbrown::HashSet<_>>().len();
+        if unique_count != len {
+            return Err(TxValidationError::DoubleSpend(unique_count, len));
+        }
+        Ok(())
+    }
+}
+
+/// Errors when validating transaction
+#[derive(Error, Debug)]
+pub enum TxValidationError {
+    /// Transaction has more than [`i16::MAX`] inputs
+    #[error("Sum of ERG in outputs overflowed")]
+    /// Sum of ERG in outputs has overflowed
+    OutputSumOverflow,
+    #[error("Unique inputs: {0}, actual inputs: {1}")]
+    /// The transaction is attempting to spend the same [`BoxId`] twice
+    DoubleSpend(usize, usize),
 }
 
 /// Arbitrary impl
