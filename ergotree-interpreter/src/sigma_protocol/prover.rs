@@ -648,7 +648,10 @@ fn step5_schnorr(
                 // Step 5 (simulated leaf -- complete the simulation)
                 if let Some(challenge) = us.challenge_opt.clone() {
                     let (fm, sm) =
-                        dlog_protocol::interactive_prover::simulate(&us.proposition, &challenge);
+                        dlog_protocol::interactive_prover::simulate(&us.proposition, &challenge)
+                            .map_err(|_| {
+                                ProverError::Unexpected("step5_schnorr: failed to simulate leaf")
+                            })?;
                     Ok(ProofTree::UncheckedTree(
                         UncheckedSchnorr {
                             proposition: us.proposition.clone(),
@@ -713,7 +716,7 @@ fn step5_diffie_hellman_tuple(
                     let (fm, sm) = dht_protocol::interactive_prover::simulate(
                         &dhu.proposition,
                         &dhu_challenge,
-                    );
+                    ).map_err(|_| ProverError::Unexpected("step5_diffie_hellman_tuple: Could not simulate leaf"))?;
                     Ok(UncheckedDhTuple {
                         proposition: dhu.proposition.clone(),
                         commitment_opt: Some(fm),
@@ -942,7 +945,7 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                     "step9_real_schnorr: Expected DLOG prover input in prover secrets, got DhTupleProverInput",
                 ));
             }
-            None => match hints_bag
+            None => Ok(match hints_bag
                 .real_proofs()
                 .into_iter()
                 .find(|comm| comm.position == us.position)
@@ -950,8 +953,8 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                 Some(tree) => {
                     let unchecked_tree = tree.unchecked_tree;
                     if let UncheckedTree::UncheckedLeaf(UncheckedLeaf::UncheckedSchnorr(
-                        unchecked_schnorr,
-                    )) = unchecked_tree
+                                                            unchecked_schnorr,
+                                                        )) = unchecked_tree
                     {
                         unchecked_schnorr.second_message
                     } else {
@@ -965,7 +968,7 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                             ergotree_ir::sigma_protocol::dlog_group::random_scalar_in_group_range(
                                 crate::sigma_protocol::crypto_utils::secure_rng(),
                             )
-                            .into();
+                                .into();
                         dlog_protocol::SecondDlogProverMessage { z: bs }
                     }
                     #[cfg(not(feature = "std"))]
@@ -973,8 +976,8 @@ fn step9_real_schnorr<P: Prover + ?Sized>(
                         return Err(ProverError::Unsupported);
                     }
                 }
-            },
-        };
+            }),
+        }.map_err(|_| ProverError::Unexpected("step9_real_schnorr: Could not generate SecondDlogProverMessage"))?;
         Ok(Some(
             UncheckedSchnorr {
                 proposition: us.proposition,
@@ -1015,6 +1018,9 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                         &commitment_from_hints_bag.secret_randomness,
                         &dhu_challenge,
                     )
+                    .map_err(|_| {
+                        ProverError::Unexpected("step9_real_dh_tuple: second message failed")
+                    })?
                 }
                 None => dht_protocol::interactive_prover::second_message(
                     priv_key,
@@ -1024,7 +1030,10 @@ fn step9_real_dh_tuple<P: Prover + ?Sized>(
                         )
                     })?,
                     &dhu_challenge,
-                ),
+                )
+                .map_err(|_| {
+                    ProverError::Unexpected("step9_real_dh_tuple: second message failed")
+                })?,
             },
             Some(PrivateInput::DlogProverInput(_)) => {
                 return Err(ProverError::Unexpected("step9_real_dh_tuple: Expected DhTupleProverInput  in prover secrets, got DlogProverInput"));

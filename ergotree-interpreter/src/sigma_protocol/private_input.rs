@@ -11,12 +11,11 @@ use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
 
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 
+use super::wscalar::Wscalar;
 use derive_more::From;
-use k256::elliptic_curve::PrimeField;
 use num_bigint::BigUint;
 use num_traits::ToPrimitive;
-
-use super::wscalar::Wscalar;
+use secp256k1::{constants, SecretKey};
 
 /// Secret key of discrete logarithm signature protocol
 #[cfg_attr(feature = "json", derive(serde::Serialize, serde::Deserialize))]
@@ -52,9 +51,10 @@ impl DlogProverInput {
     /// Attempts to parse the given byte array as an SEC-1-encoded scalar(secret key).
     /// Returns None if the byte array does not contain a big-endian integer in the range [0, modulus).
     pub fn from_bytes(bytes: &[u8; DlogProverInput::SIZE_BYTES]) -> Option<DlogProverInput> {
-        k256::Scalar::from_repr((*bytes).into())
-            .map(|s| DlogProverInput::from(Wscalar::from(s)))
-            .into()
+        match SecretKey::from_byte_array(bytes).map(|s| DlogProverInput::from(Wscalar::from(s))) {
+            Ok(v) => Some(v),
+            Err(_) => None,
+        }
     }
 
     /// Attempts to parse the given Base16-encoded byte array as an SEC-1-encoded scalar(secret key).
@@ -85,7 +85,7 @@ impl DlogProverInput {
 
     /// byte representation of the underlying scalar
     pub fn to_bytes(&self) -> [u8; DlogProverInput::SIZE_BYTES] {
-        self.w.as_scalar_ref().to_bytes().into()
+        self.w.as_scalar_ref().secret_bytes()
     }
 
     /// public key of discrete logarithm signature protocol
@@ -100,7 +100,7 @@ impl DlogProverInput {
 
     /// Return true if the secret is 0
     pub fn is_zero(&self) -> bool {
-        self.w.as_scalar_ref().is_zero().into()
+        self.w.as_scalar_ref().secret_bytes().eq(&constants::ZERO)
     }
 }
 
@@ -160,7 +160,7 @@ impl DhTupleProverInput {
     #[allow(clippy::unwrap_used)]
     pub fn to_bytes(&self) -> [u8; DhTupleProverInput::SIZE_BYTES] {
         let mut bytes = Vec::with_capacity(DhTupleProverInput::SIZE_BYTES);
-        bytes.extend_from_slice(self.w.as_scalar_ref().to_bytes().as_slice());
+        bytes.extend_from_slice(self.w.as_scalar_ref().secret_bytes().as_slice());
         bytes.extend_from_slice(&self.common_input.g.sigma_serialize_bytes().unwrap());
         bytes.extend_from_slice(&self.common_input.h.sigma_serialize_bytes().unwrap());
         bytes.extend_from_slice(&self.common_input.u.sigma_serialize_bytes().unwrap());
@@ -207,9 +207,10 @@ impl DhTupleProverInput {
         u_bytes: &[u8; EcPoint::GROUP_SIZE],
         v_bytes: &[u8; EcPoint::GROUP_SIZE],
     ) -> Option<DhTupleProverInput> {
-        let w: Option<Wscalar> = k256::Scalar::from_repr((*w_bytes).into())
-            .map(Wscalar::from)
-            .into();
+        let w: Option<Wscalar> = match SecretKey::from_byte_array(w_bytes) {
+            Ok(k) => Some(Wscalar::from(k)),
+            Err(_) => None,
+        };
         let g = EcPoint::sigma_parse_bytes(&g_bytes[..EcPoint::GROUP_SIZE]).ok()?;
         let h = EcPoint::sigma_parse_bytes(&h_bytes[..EcPoint::GROUP_SIZE]).ok()?;
         let u = EcPoint::sigma_parse_bytes(&u_bytes[..EcPoint::GROUP_SIZE]).ok()?;

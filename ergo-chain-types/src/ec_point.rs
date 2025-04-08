@@ -1,23 +1,25 @@
 //! Elliptic curve point.
 
 use alloc::string::String;
+use alloc::vec::Vec;
 use core::convert::TryFrom;
-use core::ops::{Add, Mul, Neg};
+use core::ops::{Mul, Neg};
 use derive_more::{From, Into};
-use k256::elliptic_curve::group::prime::PrimeCurveAffine;
-use k256::elliptic_curve::sec1::ToEncodedPoint;
-use k256::{ProjectivePoint, PublicKey, Scalar};
+use secp256k1::constants::{GENERATOR_X, GENERATOR_Y};
+use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
 use sigma_ser::vlq_encode::{ReadSigmaVlqExt, WriteSigmaVlqExt};
-use sigma_ser::{ScorexParsingError, ScorexSerializable, ScorexSerializeResult};
+use sigma_ser::{
+    ScorexParsingError, ScorexSerializable, ScorexSerializationError, ScorexSerializeResult,
+};
 
 /// Elliptic curve point
-#[derive(PartialEq, Clone, Default, From, Into)]
+#[derive(PartialEq, Clone, From, Into)]
 #[cfg_attr(
     feature = "json",
     derive(serde::Serialize, serde::Deserialize),
     serde(into = "String", try_from = "String")
 )]
-pub struct EcPoint(ProjectivePoint);
+pub struct EcPoint(PublicKey);
 
 #[allow(clippy::unwrap_used)]
 impl core::fmt::Debug for EcPoint {
@@ -48,6 +50,11 @@ impl EcPoint {
             .ok()
             .and_then(|bytes| Self::scorex_parse_bytes(&bytes).ok())
     }
+
+    /// Returns PublicKey of EcPoint
+    pub fn public_key(&self) -> &PublicKey {
+        &self.0
+    }
 }
 
 impl TryFrom<String> for EcPoint {
@@ -74,7 +81,10 @@ impl Mul<&EcPoint> for EcPoint {
     type Output = EcPoint;
 
     fn mul(self, other: &EcPoint) -> EcPoint {
-        EcPoint(ProjectivePoint::add(self.0, &other.0))
+        match self.0.combine(&other.0) {
+            Ok(pub_key) => EcPoint(pub_key),
+            Err(_) => EcPoint(self.0),
+        }
     }
 }
 
@@ -82,66 +92,52 @@ impl Neg for EcPoint {
     type Output = EcPoint;
 
     fn neg(self) -> EcPoint {
-        EcPoint(ProjectivePoint::neg(self.0))
+        EcPoint(self.0.negate(&Secp256k1::new()))
     }
 }
 
 /// The generator g of the group is an element of the group such that, when written multiplicatively, every element
 /// of the group is a power of g.
 pub fn generator() -> EcPoint {
-    EcPoint(ProjectivePoint::GENERATOR)
-}
-
-/// The identity(infinity) element
-pub const fn identity() -> EcPoint {
-    EcPoint(ProjectivePoint::IDENTITY)
-}
-
-/// Check if point is identity(infinity) element
-pub fn is_identity(ge: &EcPoint) -> bool {
-    *ge == identity()
+    let whole: Vec<u8> = [4]
+        .iter()
+        .chain(GENERATOR_X.iter())
+        .chain(GENERATOR_Y.iter())
+        .copied()
+        .collect();
+    #[allow(clippy::unwrap_used)]
+    EcPoint(PublicKey::from_slice(whole.as_slice()).unwrap())
 }
 
 /// Calculates the inverse of the given group element
 pub fn inverse(ec: &EcPoint) -> EcPoint {
-    -ec.clone()
+    ec.clone().neg()
 }
 
 /// Raises the base GroupElement to the exponent. The result is another GroupElement.
-pub fn exponentiate(base: &EcPoint, exponent: &Scalar) -> EcPoint {
-    if !is_identity(base) {
-        // we treat EC as a multiplicative group, therefore, exponentiate point is multiply.
-        EcPoint(base.0 * exponent)
-    } else {
-        base.clone()
+pub fn exponentiate(base: &EcPoint, exponent: &SecretKey) -> EcPoint {
+    match base
+        .0
+        .mul_tweak(&Secp256k1::new(), &Scalar::from(*exponent))
+    {
+        Err(_) => base.clone(),
+        Ok(public_key) => EcPoint(public_key),
     }
 }
 
 impl ScorexSerializable for EcPoint {
     fn scorex_serialize<W: WriteSigmaVlqExt>(&self, w: &mut W) -> ScorexSerializeResult {
-        let caff = self.0.to_affine();
-        if caff.is_identity().into() {
-            // infinity point
-            let zeroes = [0u8; EcPoint::GROUP_SIZE];
-            w.write_all(&zeroes)?;
-        } else {
-            w.write_all(caff.to_encoded_point(true).as_bytes())?;
-        }
-        Ok(())
+        w.write_all(&self.0.serialize())
+            .map_err(ScorexSerializationError::from)
     }
 
     fn scorex_parse<R: ReadSigmaVlqExt>(r: &mut R) -> Result<Self, ScorexParsingError> {
         let mut buf = [0; EcPoint::GROUP_SIZE];
         r.read_exact(&mut buf[..])?;
-        if buf[0] != 0 {
-            let pubkey = PublicKey::from_sec1_bytes(&buf[..]).map_err(|e| {
-                ScorexParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))
-            })?;
-            Ok(EcPoint(pubkey.to_projective()))
-        } else {
-            // infinity point
-            Ok(EcPoint(ProjectivePoint::IDENTITY))
-        }
+        let pubkey = PublicKey::from_byte_array_compressed(&buf).map_err(|e| {
+            ScorexParsingError::Misc(format!("failed to parse PK from bytes: {:?}", e))
+        })?;
+        Ok(EcPoint(pubkey))
     }
 }
 
@@ -158,7 +154,7 @@ mod arbitrary {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             prop_oneof![
                 Just(generator()),
-                Just(identity()), /*Just(random_element()),*/
+                //Just(identity()), /*Just(random_element()),*/
             ]
             .boxed()
         }

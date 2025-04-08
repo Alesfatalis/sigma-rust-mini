@@ -16,9 +16,8 @@ sigma-util = { workspace = true }
 sigma-ser = { workspace = true }
 ergo-chain-types = { workspace = true }
 ergotree-ir = { workspace = true }
-k256 = { workspace = true }
-elliptic-curve = { workspace = true }
 blake2 = { workspace = true }
+elliptic-curve = { workspace = true }
 rand = { workspace = true, optional = true }
 thiserror = { workspace = true }
 derive_more = { workspace = true }
@@ -34,6 +33,7 @@ proptest = { workspace = true, optional = true }
 gf2_192 = { version = "^0.27.1", path = "../gf2_192" }
 miette = { workspace = true, optional = true }
 core2 = { workspace = true }
+secp256k1 = {workspace = true}
 
 [features]
 json = [

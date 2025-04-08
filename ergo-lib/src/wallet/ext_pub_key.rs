@@ -8,6 +8,7 @@ use ergotree_ir::chain::address::Address;
 use ergotree_ir::serialization::SigmaParsingError;
 use ergotree_ir::serialization::SigmaSerializable;
 use hmac::{Hmac, Mac};
+use secp256k1::PublicKey;
 use sha2::Sha512;
 use thiserror::Error;
 
@@ -86,17 +87,20 @@ impl ExtPubKey {
         let mut secret_key_bytes = [0; 32];
         secret_key_bytes.copy_from_slice(&mac_bytes[..32]);
         if let Some(child_secret_key) = DlogProverInput::from_bytes(&secret_key_bytes) {
-            let child_pub_key = *child_secret_key.public_image().h * &self.public_key;
-            if ergo_chain_types::ec_point::is_identity(&child_pub_key) {
+            match PublicKey::combine_keys(&[
+                child_secret_key.public_image().h.public_key(),
+                self.public_key.public_key(),
+            ]) {
                 // point is infinity element, thus repeat with next index value (see BIP-32)
-                self.child(index.next())
-            } else {
-                let mut chain_code = [0; 32];
-                chain_code.copy_from_slice(&mac_bytes[32..]);
-                ExtPubKey {
-                    public_key: child_pub_key,
-                    chain_code,
-                    derivation_path: self.derivation_path.extend(index.into()),
+                Err(_) => self.child(index.next()),
+                Ok(child_pub_key) => {
+                    let mut chain_code = [0; 32];
+                    chain_code.copy_from_slice(&mac_bytes[32..]);
+                    ExtPubKey {
+                        public_key: EcPoint::from(child_pub_key),
+                        chain_code,
+                        derivation_path: self.derivation_path.extend(index.into()),
+                    }
                 }
             }
         } else {
