@@ -251,9 +251,15 @@ impl ErgoBoxCandidate {
         token_ids_in_tx: Option<&IndexSet<TokenId>>,
         w: &mut W,
     ) -> SigmaSerializeResult {
+        let ergo_tree_bytes = if w.keystone_serialization() {
+            self.ergo_tree.keystone_sigma_serialize_bytes()
+        } else {
+            self.ergo_tree.sigma_serialize_bytes()
+        }?;
+
         serialize_box_with_indexed_digests(
             &self.value,
-            self.ergo_tree.sigma_serialize_bytes()?,
+            ergo_tree_bytes,
             &self.tokens,
             &self.additional_registers,
             self.creation_height,
