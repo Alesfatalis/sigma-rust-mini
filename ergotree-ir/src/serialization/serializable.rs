@@ -138,10 +138,26 @@ pub trait SigmaSerializable: Sized {
         Ok(data)
     }
 
+    /// Serialize any SigmaSerializable value into bytes using extended serialization schema for keystone
+    fn keystone_sigma_serialize_bytes(&self) -> Result<Vec<u8>, SigmaSerializationError> {
+        let mut data = Vec::new();
+        let mut w = SigmaByteWriter::new_with_keystone_serialization(&mut data, None);
+        self.sigma_serialize(&mut w)?;
+        Ok(data)
+    }
+
     /// Parse `self` from the bytes
     fn sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SigmaParsingError> {
         let cursor = Cursor::new(bytes);
         let mut sr = SigmaByteReader::new(cursor, ConstantStore::empty());
+        Self::sigma_parse(&mut sr)
+    }
+
+    /// Parse self from the bytes using extended serialization schema for keystone
+    fn keystone_sigma_parse_bytes(bytes: &[u8]) -> Result<Self, SigmaParsingError> {
+        let cursor = Cursor::new(bytes);
+        let mut sr =
+            SigmaByteReader::new_with_keystone_serialization(cursor, ConstantStore::empty());
         Self::sigma_parse(&mut sr)
     }
 }

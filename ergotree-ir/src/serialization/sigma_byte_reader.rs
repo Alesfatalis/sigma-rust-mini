@@ -9,6 +9,7 @@ pub struct SigmaByteReader<R> {
     inner: R,
     constant_store: ConstantStore,
     substitute_placeholders: bool,
+    keystone_serialization: bool,
 }
 
 impl<R: Read> SigmaByteReader<R> {
@@ -18,6 +19,7 @@ impl<R: Read> SigmaByteReader<R> {
             inner: pr,
             constant_store,
             substitute_placeholders: false,
+            keystone_serialization: false,
         }
     }
 
@@ -31,6 +33,20 @@ impl<R: Read> SigmaByteReader<R> {
             inner: pr,
             constant_store,
             substitute_placeholders: true,
+            keystone_serialization: false,
+        }
+    }
+
+    /// Make a new reader using keystone serialization schema
+    pub fn new_with_keystone_serialization(
+        pr: R,
+        constant_store: ConstantStore,
+    ) -> SigmaByteReader<R> {
+        SigmaByteReader {
+            inner: pr,
+            constant_store,
+            substitute_placeholders: false,
+            keystone_serialization: true,
         }
     }
 }
@@ -41,6 +57,7 @@ pub fn from_bytes<T: AsRef<[u8]>>(bytes: T) -> SigmaByteReader<Cursor<T>> {
         inner: Cursor::new(bytes),
         constant_store: ConstantStore::empty(),
         substitute_placeholders: false,
+        keystone_serialization: false,
     }
 }
 
@@ -54,6 +71,9 @@ pub trait SigmaByteRead: ReadSigmaVlqExt {
 
     /// Set new constant store
     fn set_constant_store(&mut self, constant_store: ConstantStore);
+
+    /// Option to enable keystone serialization schema
+    fn keystone_serialization(&self) -> bool;
 }
 
 impl<R: Read> Read for SigmaByteReader<R> {
@@ -73,5 +93,9 @@ impl<R: ReadSigmaVlqExt> SigmaByteRead for SigmaByteReader<R> {
 
     fn set_constant_store(&mut self, constant_store: ConstantStore) {
         self.constant_store = constant_store;
+    }
+
+    fn keystone_serialization(&self) -> bool {
+        self.keystone_serialization
     }
 }

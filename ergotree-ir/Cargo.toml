@@ -37,6 +37,7 @@ hashbrown = { workspace = true }
 core2 = { workspace = true }
 foldhash = { version = "0.1.3", default-features = false }
 secp256k1 = {workspace = true}
+lazy_static = {workspace = true}
 
 [features]
 default = ["json", "std"]
