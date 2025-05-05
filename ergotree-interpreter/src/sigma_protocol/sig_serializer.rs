@@ -25,6 +25,7 @@ use ergotree_ir::serialization::sigma_byte_writer::SigmaByteWriter;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaBoolean;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaConjecture;
 use ergotree_ir::sigma_protocol::sigma_boolean::SigmaProofOfKnowledgeTree;
+use secp256k1::Error;
 
 use gf2_192::Gf2_192Error;
 use thiserror::Error;
@@ -55,12 +56,12 @@ fn sig_write_bytes<W: SigmaByteWrite>(
     match node {
         UncheckedTree::UncheckedLeaf(leaf) => match leaf {
             UncheckedLeaf::UncheckedSchnorr(us) => {
-                let mut sm_bytes = us.second_message.z.as_scalar_ref().to_bytes();
+                let mut sm_bytes = us.second_message.z.as_scalar_ref().secret_bytes();
                 w.write_all(sm_bytes.as_mut_slice())?;
                 Ok(())
             }
             UncheckedLeaf::UncheckedDhTuple(dh) => {
-                let mut sm_bytes = dh.second_message.z.as_scalar_ref().to_bytes();
+                let mut sm_bytes = dh.second_message.z.as_scalar_ref().secret_bytes();
                 w.write_all(sm_bytes.as_mut_slice())
             }
         },
@@ -150,7 +151,8 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                 let mut scalar_bytes: [u8; super::GROUP_SIZE] = [0; super::GROUP_SIZE];
                 r.read_exact(&mut scalar_bytes)
                     .map_err(|_| SigParsingError::ScalarReadProveDlog(exp.clone()))?;
-                let z = Wscalar::from(GroupSizedBytes(scalar_bytes.into()));
+                let z = Wscalar::try_from(GroupSizedBytes(scalar_bytes.into()))
+                    .map_err(|_| SigParsingError::ScalarReadProveDlog(exp.clone()))?;
                 Ok(UncheckedSchnorr {
                     proposition: dl.clone(),
                     commitment_opt: None,
@@ -164,7 +166,8 @@ fn parse_sig_compute_challenges_reader<R: SigmaByteRead>(
                 let mut scalar_bytes: [u8; super::GROUP_SIZE] = [0; super::GROUP_SIZE];
                 r.read_exact(&mut scalar_bytes)
                     .map_err(|_| SigParsingError::ScalarReadProveDhTuple(exp.clone()))?;
-                let z = Wscalar::from(GroupSizedBytes(scalar_bytes.into()));
+                let z = Wscalar::try_from(GroupSizedBytes(scalar_bytes.into()))
+                    .map_err(|_| SigParsingError::ScalarReadProveDhTuple(exp.clone()))?;
                 Ok(UncheckedDhTuple {
                     proposition: dh.clone(),
                     commitment_opt: None,
@@ -280,4 +283,7 @@ pub enum SigParsingError {
 
     #[error("Error: {0:?} for top level exp: {1:?}")]
     TopLevelExpWrap(Box<SigParsingError>, SigmaBoolean),
+
+    #[error("Error while computing commitments: {0}")]
+    ComputeCommitmentsError(Error),
 }

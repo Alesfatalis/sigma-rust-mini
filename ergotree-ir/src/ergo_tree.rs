@@ -113,6 +113,9 @@ pub enum ErgoTreeError {
     /// IO error
     #[error("IO error: {0:?}")]
     IoError(String),
+    /// ErgoTree parsing not supported
+    #[error("parsing not supported")]
+    NotSupported,
 }
 
 /// The root of ErgoScript IR. Serialized instances of this class are self sufficient and can be passed around.
@@ -317,12 +320,18 @@ impl TryFrom<Expr> for ErgoTree {
 }
 
 impl SigmaSerializable for ErgoTree {
+    /// customized serialization schema providing tree size so trees can be kept unparsed
     fn sigma_serialize<W: SigmaByteWrite>(&self, w: &mut W) -> SigmaSerializeResult {
         match self {
             ErgoTree::Unparsed {
                 tree_bytes,
                 error: _,
-            } => w.write_all(&tree_bytes[..])?,
+            } => {
+                if w.keystone_serialization() {
+                    w.put_usize_as_u32_unwrapped(tree_bytes.len())?; //ergoTreeLen:VLQ
+                }
+                w.write_all(&tree_bytes[..])?
+            }
             ErgoTree::Parsed(parsed_tree) => {
                 let bytes = {
                     let mut data = Vec::new();
@@ -338,6 +347,9 @@ impl SigmaSerializable for ErgoTree {
                     data
                 };
 
+                if w.keystone_serialization() {
+                    w.put_usize_as_u32_unwrapped(bytes.len())?; //ergoTreeLen:VLQ
+                }
                 parsed_tree.header.sigma_serialize(w)?;
                 if parsed_tree.header.has_size() {
                     w.put_usize_as_u32_unwrapped(bytes.len())?;
@@ -348,7 +360,18 @@ impl SigmaSerializable for ErgoTree {
         Ok(())
     }
 
+    /// reads ergo tree as unparsed tree by utilizing custom serialization schema providing whole tree size
     fn sigma_parse<R: SigmaByteRead>(r: &mut R) -> Result<Self, SigmaParsingError> {
+        if r.keystone_serialization() {
+            let tree_size_bytes = r.get_u32()?; //ergoTreeLen:VLQ
+            let mut buf = vec![0u8; tree_size_bytes as usize];
+            r.read_exact(buf.as_mut_slice())?;
+            return Ok(ErgoTree::Unparsed {
+                tree_bytes: buf,
+                error: ErgoTreeError::NotSupported,
+            });
+        }
+
         let header = ErgoTreeHeader::sigma_parse(r)?;
         if header.has_size() {
             let tree_size_bytes = r.get_u32()?;

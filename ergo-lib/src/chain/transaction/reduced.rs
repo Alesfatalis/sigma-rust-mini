@@ -117,7 +117,11 @@ impl SigmaSerializable for ReducedTransaction {
         let bytes_len = r.get_u32()?;
         let mut buf = vec![0u8; bytes_len as usize];
         r.read_exact(buf.as_mut_slice())?;
-        let tx = Transaction::sigma_parse_bytes(&buf)?;
+        let tx: Transaction = if r.keystone_serialization() {
+            Transaction::keystone_sigma_parse_bytes(&buf)?
+        } else {
+            Transaction::sigma_parse_bytes(&buf)?
+        };
         let input_pairs: TxIoVec<(ReducedInput, UnsignedInput)> =
             tx.inputs.try_mapped::<_, _, SigmaParsingError>(|input| {
                 let sigma_prop = SigmaBoolean::sigma_parse(r)?;

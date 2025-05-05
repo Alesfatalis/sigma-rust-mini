@@ -27,7 +27,10 @@ pub(super) fn generate_commitments_for<P: Prover + ?Sized>(
             else {
                 return None;
             };
-            let (r, a) = first_message_deterministic(&sk, msg, aux_rand);
+            let (r, a) = match first_message_deterministic(&sk, msg, aux_rand) {
+                Some((r, a)) => (r, a),
+                None => return None,
+            };
             let mut bag = HintsBag::empty();
             let own_commitment: Hint =
                 Hint::CommitmentHint(CommitmentHint::OwnCommitment(OwnCommitment {
@@ -110,7 +113,8 @@ mod test {
         else {
             unreachable!();
         };
-        let commitment = compute_commitment(&pk, &schnorr.challenge, &schnorr.second_message);
+        let commitment =
+            compute_commitment(&pk, &schnorr.challenge, &schnorr.second_message).unwrap();
         (commitment, schnorr.challenge.into())
     }
 

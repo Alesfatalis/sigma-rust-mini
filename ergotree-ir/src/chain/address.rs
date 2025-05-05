@@ -19,6 +19,7 @@ use alloc::vec::Vec;
 use ergo_chain_types::EcPoint;
 
 use core::convert::{TryFrom, TryInto};
+use lazy_static::lazy_static;
 use sigma_util::hash::blake2b256_hash;
 use thiserror::Error;
 
@@ -199,6 +200,9 @@ pub enum AddressError {
     /// ErgoTree parsing error
     #[error("ErgoTree error: {0}")]
     ErgoTreeError(#[from] ErgoTreeError),
+    /// ErgoTree not parsable
+    #[error("ErgoTree error: {0}")]
+    InvalidErgoTree(String),
 }
 
 impl From<SigmaSerializationError> for AddressError {
@@ -431,6 +435,70 @@ impl AddressEncoder {
     }
 }
 
+/// get base58 network address from unparsed ergo tree
+pub fn base58_address_from_tree(
+    network_prefix: NetworkPrefix,
+    tree: &ErgoTree,
+) -> Result<String, AddressError> {
+    match tree {
+        ErgoTree::Unparsed {
+            tree_bytes,
+            error: _,
+        } => {
+            let address_type_prefix = get_address_type_from_unparsed_tree(tree_bytes) as u8;
+            if address_type_prefix == AddressTypePrefix::P2Pk as u8 {
+                // parsing of P2PK trees is possible
+                let parsed_ergo_tree = ErgoTree::sigma_parse_bytes(tree_bytes)
+                    .map_err(|e| AddressError::InvalidErgoTree(e.to_string()))?;
+                let address = Address::recreate_from_ergo_tree(&parsed_ergo_tree)?;
+                return Ok(NetworkAddress::new(network_prefix, &address).to_base58());
+            }
+            let prefix_byte = network_prefix as u8 + address_type_prefix;
+            let mut bytes = vec![prefix_byte];
+            bytes.append(&mut tree_bytes.to_vec());
+            let mut calculated_checksum = AddressEncoder::calc_checksum(&bytes[..]).to_vec();
+            bytes.append(&mut calculated_checksum);
+            Ok(bs58::encode(bytes).into_string())
+        }
+        ErgoTree::Parsed(_) => Err(AddressError::UnexpectedErgoTree(
+            tree.clone(),
+            "parsed ergo tree not supported".to_string(),
+        )),
+    }
+}
+
+const P2PK_ERGOTREE_PREFIX: &str = "0008cd";
+const P2SH_ERGOTREE_SUFFIX: &str = "d40801";
+const P2SH_ERGOTREE_PREFIX: &str = "00ea02d193b4cbe4e3010e040004300e18";
+const P2PK_ERGOTREE_LENGTH: usize = 36;
+const P2SH_ERGOTREE_LENGTH: usize = 44;
+
+lazy_static! {
+    static ref P2PK_ERGOTREE_PREFIX_BYTES: Vec<u8> = #[allow(clippy::unwrap_used)]
+    base16::decode(P2PK_ERGOTREE_PREFIX).unwrap();
+    static ref P2SH_ERGOTREE_SUFFIX_BYTES: Vec<u8> = #[allow(clippy::unwrap_used)]
+    base16::decode(P2SH_ERGOTREE_SUFFIX).unwrap();
+    static ref P2SH_ERGOTREE_PREFIX_BYTES: Vec<u8> = #[allow(clippy::unwrap_used)]
+    base16::decode(P2SH_ERGOTREE_PREFIX).unwrap();
+}
+
+fn get_address_type_from_unparsed_tree(tree_bytes: &[u8]) -> AddressTypePrefix {
+    if tree_bytes.len() == P2PK_ERGOTREE_LENGTH
+        && tree_bytes.starts_with(P2PK_ERGOTREE_PREFIX_BYTES.as_ref())
+    {
+        return AddressTypePrefix::P2Pk;
+    }
+
+    if tree_bytes.len() == P2SH_ERGOTREE_LENGTH
+        && tree_bytes.starts_with(P2SH_ERGOTREE_PREFIX_BYTES.as_ref())
+        && tree_bytes.ends_with(P2SH_ERGOTREE_SUFFIX_BYTES.as_ref())
+    {
+        return AddressTypePrefix::Pay2Sh;
+    }
+
+    AddressTypePrefix::Pay2S
+}
+
 #[cfg(feature = "arbitrary")]
 #[allow(clippy::unwrap_used)]
 pub(crate) mod arbitrary {
@@ -485,5 +553,43 @@ mod tests {
             let encoder = AddressEncoder::new(NetworkPrefix::Testnet);
             prop_assert![encoder.parse_address_from_str(&s).is_err()];
         }
+    }
+
+    #[test]
+    fn p2pk_base58_from_unparsed_ergo_tree() {
+        let tree_bytes: Vec<u8> = vec![
+            0, 8, 205, 2, 220, 91, 157, 157, 32, 129, 136, 158, 240, 14, 100, 82, 251, 90, 209,
+            115, 13, 244, 36, 68, 206, 204, 185, 234, 2, 37, 130, 86, 210, 251, 210, 98,
+        ];
+        let unparsed_tree = ErgoTree::Unparsed {
+            tree_bytes,
+            error: ErgoTreeError::NotSupported,
+        };
+        let address_str = base58_address_from_tree(NetworkPrefix::Mainnet, &unparsed_tree).unwrap();
+        assert_eq!(
+            address_str,
+            "9gC7G6no8SCSnZT34qLJFWngB3UmKpFKXxjGj9QscN65yBLdYao".to_string()
+        )
+    }
+
+    #[test]
+    fn p2s_base58_from_unparsed_ergo_tree() {
+        let tree_bytes: Vec<u8> = vec![
+            16, 5, 4, 0, 4, 0, 14, 54, 16, 2, 4, 160, 11, 8, 205, 2, 121, 190, 102, 126, 249, 220,
+            187, 172, 85, 160, 98, 149, 206, 135, 11, 7, 2, 155, 252, 219, 45, 206, 40, 217, 89,
+            242, 129, 91, 22, 248, 23, 152, 234, 2, 209, 146, 163, 154, 140, 199, 167, 1, 115, 0,
+            115, 1, 16, 1, 2, 4, 2, 209, 150, 131, 3, 1, 147, 163, 140, 199, 178, 165, 115, 0, 0,
+            1, 147, 194, 178, 165, 115, 1, 0, 116, 115, 2, 115, 3, 131, 1, 8, 205, 238, 172, 147,
+            177, 165, 115, 4,
+        ];
+        let unparsed_tree = ErgoTree::Unparsed {
+            tree_bytes,
+            error: ErgoTreeError::NotSupported,
+        };
+        let address_str = base58_address_from_tree(NetworkPrefix::Mainnet, &unparsed_tree).unwrap();
+        assert_eq!(
+            address_str,
+            "2iHkR7CWvD1R4j1yZg5bkeDRQavjAaVPeTDFGGLZduHyfWMuYpmhHocX8GJoaieTx78FntzJbCBVL6rf96ocJoZdmWBL2fci7NqWgAirppPQmZ7fN9V6z13Ay6brPriBKYqLp1bT2Fk4FkFLCfdPpe".to_string()
+        )
     }
 }

@@ -15,7 +15,7 @@ use ergotree_ir::{
     sigma_protocol::sigma_boolean::ProveDlog,
 };
 use hmac::{Hmac, Mac};
-
+use secp256k1::Scalar;
 use sha2::Sha512;
 use thiserror::Error;
 
@@ -130,13 +130,13 @@ impl ExtSecretKey {
         if let Some(dlog_prover) = DlogProverInput::from_bytes(&secret_key_bytes) {
             // parse256(IL) + kpar (mod n).
             // via https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#child-key-derivation-ckd-functions
-            let child_secret_key: DlogProverInput = Wscalar::from(
-                dlog_prover
-                    .w
-                    .as_scalar_ref()
-                    .add(self.private_input.w.as_scalar_ref()),
-            )
-            .into();
+            let key = dlog_prover
+                .w
+                .as_scalar_ref()
+                .add_tweak(&Scalar::from(*self.private_input.w.as_scalar_ref()))
+                .map_err(|_| ExtSecretKeyError::ScalarEncodingError)?;
+            let child_secret_key: DlogProverInput = Wscalar::from(key).into();
+
             if child_secret_key.is_zero() {
                 // ki == 0 case of:
                 // > In case parse256(IL) ≥ n or ki = 0, the resulting key is invalid, and one

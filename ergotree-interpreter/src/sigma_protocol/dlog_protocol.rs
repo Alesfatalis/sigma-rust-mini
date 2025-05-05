@@ -40,7 +40,6 @@ pub struct SecondDlogProverMessage {
 
 /// Interactive prover
 pub mod interactive_prover {
-    use core::ops::Mul;
 
     use super::{FirstDlogProverMessage, SecondDlogProverMessage};
     use crate::sigma_protocol::wscalar::Wscalar;
@@ -48,15 +47,15 @@ pub mod interactive_prover {
     use alloc::boxed::Box;
     use blake2::Blake2b;
     use blake2::Digest;
-    use elliptic_curve::ops::MulByGenerator;
     use ergo_chain_types::{
         ec_point::{exponentiate, generator, inverse},
         EcPoint,
     };
+    use ergotree_ir::bigint256::BigInt256;
     use ergotree_ir::serialization::SigmaSerializable;
+    use ergotree_ir::sigma_protocol::dlog_group::bigint256_to_scalar;
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDlog;
-    use k256::elliptic_curve::ops::Reduce;
-    use k256::{ProjectivePoint, Scalar};
+    use secp256k1::{Error, Scalar, Secp256k1, SecretKey};
 
     /// Step 5 from <https://ergoplatform.org/docs/ErgoScript.pdf>
     /// For every leaf marked “simulated”, use the simulator of the sigma protocol for that leaf
@@ -66,7 +65,7 @@ pub mod interactive_prover {
     pub(crate) fn simulate(
         public_input: &ProveDlog,
         challenge: &Challenge,
-    ) -> (FirstDlogProverMessage, SecondDlogProverMessage) {
+    ) -> Result<(FirstDlogProverMessage, SecondDlogProverMessage), Error> {
         use ergotree_ir::sigma_protocol::dlog_group;
         //SAMPLE a random z <- Zq
         let z = dlog_group::random_scalar_in_group_range(
@@ -74,15 +73,15 @@ pub mod interactive_prover {
         );
 
         //COMPUTE a = g^z*h^(-e)  (where -e here means -e mod q)
-        let e: Scalar = challenge.clone().into();
+        let e = SecretKey::try_from(challenge.clone())?;
         let minus_e = e.negate();
         let h_to_e = exponentiate(&public_input.h, &minus_e);
         let g_to_z = exponentiate(&generator(), &z);
         let a = g_to_z * &h_to_e;
-        (
+        Ok((
             FirstDlogProverMessage { a: a.into() },
             SecondDlogProverMessage { z: z.into() },
-        )
+        ))
     }
 
     /// Step 6 from <https://ergoplatform.org/docs/ErgoScript.pdf>
@@ -108,7 +107,7 @@ pub mod interactive_prover {
         sk: &DlogProverInput,
         msg: &[u8],
         aux_rand: &[u8],
-    ) -> (Wscalar, FirstDlogProverMessage) {
+    ) -> Option<(Wscalar, FirstDlogProverMessage)> {
         // This is based on BIP340 deterministic nonces, see: https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#default-signing
         type Blake2b256 = Blake2b<blake2::digest::typenum::U32>;
         const AUX_TAG: &[u8] = b"erg/aux";
@@ -120,7 +119,7 @@ pub mod interactive_prover {
             .chain_update(aux_rand)
             .finalize()
             .into();
-        let mut sk_bytes = sk.w.as_scalar_ref().to_bytes();
+        let mut sk_bytes = sk.w.as_scalar_ref().secret_bytes();
         sk_bytes
             .iter_mut()
             .zip(aux_rand_hash)
@@ -132,14 +131,13 @@ pub mod interactive_prover {
             .chain_update(sk.public_image().h.sigma_serialize_bytes().unwrap())
             .chain_update(msg)
             .finalize();
-
-        let r = <Scalar as Reduce<k256::U256>>::reduce_bytes(&hash);
-        (
+        let r = bigint256_to_scalar(BigInt256::from_be_slice(hash.as_slice())?)?;
+        Some((
             r.into(),
             FirstDlogProverMessage {
-                a: Box::new(ProjectivePoint::mul_by_generator(&r).into()),
+                a: Box::new(EcPoint::from(r.public_key(&Secp256k1::new()))),
             },
-        )
+        ))
     }
 
     /// Step 9 part 2 from <https://ergoplatform.org/docs/ErgoScript.pdf>
@@ -150,13 +148,13 @@ pub mod interactive_prover {
         private_input: &DlogProverInput,
         rnd: Wscalar,
         challenge: &Challenge,
-    ) -> SecondDlogProverMessage {
-        let e: Scalar = challenge.clone().into();
+    ) -> Result<SecondDlogProverMessage, Error> {
+        let e = SecretKey::try_from(challenge.clone())?;
         // modulo multiplication, no need to explicit mod op
-        let ew = e.mul(private_input.w.as_scalar_ref());
+        let ew = e.mul_tweak(&Scalar::from(*private_input.w.as_scalar_ref()))?;
         // modulo addition, no need to explicit mod op
-        let z = rnd.as_scalar_ref().add(&ew);
-        SecondDlogProverMessage { z: z.into() }
+        let z = rnd.as_scalar_ref().add_tweak(&Scalar::from(ew))?;
+        Ok(SecondDlogProverMessage { z: z.into() })
     }
 
     /// The function computes initial prover's commitment to randomness
@@ -168,17 +166,18 @@ pub mod interactive_prover {
         proposition: &ProveDlog,
         challenge: &Challenge,
         second_message: &SecondDlogProverMessage,
-    ) -> EcPoint {
+    ) -> Result<EcPoint, Error> {
         let g = generator();
         let h = *proposition.h.clone();
-        let e: Scalar = challenge.clone().into();
+        let e = SecretKey::try_from(challenge.clone())?;
         let g_z = exponentiate(&g, second_message.z.as_scalar_ref());
         let h_e = exponentiate(&h, &e);
-        g_z * &inverse(&h_e)
+        Ok(g_z * &inverse(&h_e))
     }
 }
 
 #[allow(clippy::panic)]
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 #[cfg(feature = "arbitrary")]
 mod tests {
@@ -198,8 +197,8 @@ mod tests {
         fn test_compute_commitment(secret in any::<DlogProverInput>(), challenge in any::<Challenge>()) {
             let pk = secret.public_image();
             let (r, commitment) = interactive_prover::first_message();
-            let second_message = interactive_prover::second_message(&secret, r, &challenge);
-            let a = interactive_prover::compute_commitment(&pk, &challenge, &second_message);
+            let second_message = interactive_prover::second_message(&secret, r, &challenge).unwrap();
+            let a = interactive_prover::compute_commitment(&pk, &challenge, &second_message).unwrap();
             prop_assert_eq!(a, *commitment.a);
         }
 
@@ -209,9 +208,9 @@ mod tests {
             fn sign(secret: &DlogProverInput, message: &[u8]) -> EcPoint {
                 let pk = secret.public_image();
                 let challenge: Challenge = fiat_shamir_hash_fn(message).into();
-                let (r, _) = interactive_prover::first_message_deterministic(secret, message, &[]);
-                let second_message = interactive_prover::second_message(secret, r, &challenge);
-                interactive_prover::compute_commitment(&pk, &challenge, &second_message)
+                let (r, _) = interactive_prover::first_message_deterministic(secret, message, &[]).unwrap();
+                let second_message = interactive_prover::second_message(secret, r, &challenge).unwrap();
+                interactive_prover::compute_commitment(&pk, &challenge, &second_message).unwrap()
             }
             let a = sign(&secret, &message);
             let a2 = sign(&secret2, &message);

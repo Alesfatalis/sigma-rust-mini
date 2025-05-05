@@ -54,7 +54,7 @@ pub mod interactive_prover {
     use crate::sigma_protocol::private_input::DhTupleProverInput;
     use crate::sigma_protocol::Challenge;
     use ergotree_ir::sigma_protocol::sigma_boolean::ProveDhTuple;
-    use k256::Scalar;
+    use secp256k1::{Error, Scalar, SecretKey};
 
     /// Step 5 from <https://ergoplatform.org/docs/ErgoScript.pdf>
     /// For every leaf marked “simulated”, use the simulator of the sigma protocol for that leaf
@@ -64,7 +64,7 @@ pub mod interactive_prover {
     pub(crate) fn simulate(
         public_input: &ProveDhTuple,
         challenge: &Challenge,
-    ) -> (FirstDhTupleProverMessage, SecondDhTupleProverMessage) {
+    ) -> Result<(FirstDhTupleProverMessage, SecondDhTupleProverMessage), Error> {
         use ergo_chain_types::ec_point::exponentiate;
         use ergotree_ir::sigma_protocol::dlog_group;
         //SAMPLE a random z <- Zq
@@ -73,7 +73,7 @@ pub mod interactive_prover {
         );
 
         // COMPUTE a = g^z*u^(-e) and b = h^z*v^{-e}  (where -e here means -e mod q)
-        let e: Scalar = challenge.clone().into();
+        let e = SecretKey::try_from(challenge.clone())?;
         let minus_e = e.negate();
         let h_to_z = exponentiate(&public_input.h, &z);
         let g_to_z = exponentiate(&public_input.g, &z);
@@ -81,10 +81,10 @@ pub mod interactive_prover {
         let v_to_minus_e = exponentiate(&public_input.v, &minus_e);
         let a = g_to_z.mul(&u_to_minus_e);
         let b = h_to_z.mul(&v_to_minus_e);
-        (
+        Ok((
             FirstDhTupleProverMessage::new(a, b),
             SecondDhTupleProverMessage { z: z.into() },
-        )
+        ))
     }
 
     /// Step 6 from <https://ergoplatform.org/docs/ErgoScript.pdf>
@@ -112,13 +112,16 @@ pub mod interactive_prover {
         private_input: &DhTupleProverInput,
         rnd: &Wscalar,
         challenge: &Challenge,
-    ) -> SecondDhTupleProverMessage {
-        let e: Scalar = challenge.clone().into();
+    ) -> Result<SecondDhTupleProverMessage, Error> {
+        let e = SecretKey::try_from(challenge.clone())?;
         // modulo multiplication, no need to explicit mod op
-        let ew = e.mul(private_input.w.as_scalar_ref());
+        let ew = private_input
+            .w
+            .as_scalar_ref()
+            .mul_tweak(&Scalar::from(e))?;
         // modulo addition, no need to explicit mod op
-        let z = rnd.as_scalar_ref().add(&ew);
-        SecondDhTupleProverMessage { z: z.into() }
+        let z = rnd.as_scalar_ref().add_tweak(&Scalar::from(ew))?;
+        Ok(SecondDhTupleProverMessage { z: z.into() })
     }
 
     /// The function computes initial prover's commitment to randomness
@@ -132,7 +135,7 @@ pub mod interactive_prover {
         proposition: &ProveDhTuple,
         challenge: &Challenge,
         second_message: &SecondDhTupleProverMessage,
-    ) -> (EcPoint, EcPoint) {
+    ) -> Result<(EcPoint, EcPoint), Error> {
         let g = proposition.g.clone();
         let h = proposition.h.clone();
         let u = proposition.u.clone();
@@ -140,7 +143,7 @@ pub mod interactive_prover {
 
         let z = second_message.z.clone();
 
-        let e: Scalar = challenge.clone().into();
+        let e = SecretKey::try_from(challenge.clone())?;
 
         use ergo_chain_types::ec_point::{exponentiate, inverse};
 
@@ -152,6 +155,6 @@ pub mod interactive_prover {
 
         let a = g_to_z.mul(&inverse(&u_to_e));
         let b = h_to_z.mul(&inverse(&v_to_e));
-        (a, b)
+        Ok((a, b))
     }
 }

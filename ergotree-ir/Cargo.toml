@@ -15,7 +15,6 @@ crate-type = ["rlib"]
 sigma-ser = { workspace = true }
 sigma-util = { workspace = true }
 ergo-chain-types = { workspace = true }
-k256 = { workspace = true }
 elliptic-curve = { workspace = true }
 thiserror = { workspace = true }
 derive_more = { workspace = true }
@@ -37,6 +36,8 @@ miette = { workspace = true, optional = true }
 hashbrown = { workspace = true }
 core2 = { workspace = true }
 foldhash = { version = "0.1.3", default-features = false }
+secp256k1 = {workspace = true}
+lazy_static = {workspace = true}
 
 [features]
 default = ["json", "std"]

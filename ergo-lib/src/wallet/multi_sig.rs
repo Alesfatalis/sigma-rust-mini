@@ -1,4 +1,5 @@
 //! multi sig prover
+use super::tx_context::TransactionContextError;
 use crate::chain::ergo_state_context::ErgoStateContext;
 use crate::chain::transaction::unsigned::UnsignedTransaction;
 use crate::chain::transaction::Transaction;
@@ -25,8 +26,6 @@ use ergotree_interpreter::sigma_protocol::sig_serializer::parse_sig_compute_chal
 use ergotree_interpreter::sigma_protocol::unchecked_tree::UncheckedTree;
 use ergotree_interpreter::sigma_protocol::verifier::compute_commitments;
 
-use super::tx_context::TransactionContextError;
-
 use super::TransactionHintsBag;
 
 /// A method which is extracting partial proofs of secret knowledge for particular secrets with their
@@ -41,7 +40,8 @@ pub fn bag_for_multi_sig(
     if let SigmaBoolean::TrivialProp(_) = sigma_tree {
         return Ok(HintsBag::empty());
     }
-    let ut = compute_commitments(parse_sig_compute_challenges(sigma_tree, proof.to_owned())?);
+    let ut = compute_commitments(parse_sig_compute_challenges(sigma_tree, proof.to_owned())?)
+        .map_err(SigParsingError::ComputeCommitmentsError)?;
     // Traversing node of sigma tree
     fn traverse_node(
         tree: UncheckedTree,

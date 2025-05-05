@@ -23,7 +23,7 @@ ergo-chain-types = { version = "^0.14.1", path = "./ergo-chain-types", default-f
 sigma-test-util = { version = "^0.3.0", path = "./sigma-test-util" }
 ergotree-interpreter = { version = "^0.27.1", path = "./ergotree-interpreter", default-features = false }
 ergo-lib = { version = "^0.27.1", path = "./ergo-lib"}
-k256 = { version = "0.13.1", default-features = false, features = ["arithmetic", "ecdsa"] }
+secp256k1 = { version =  "0.30.0", default-features = false, features = ["alloc"] }
 elliptic-curve = { version = "0.13", features = ["ff"] }
 thiserror = { version = "2.0.1", default-features = false }
 bounded-vec = { version = "0.8.0", default-features = false }

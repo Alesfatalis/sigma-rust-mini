@@ -23,6 +23,7 @@ use ergotree_ir::ergo_tree::ErgoTree;
 use ergotree_ir::ergo_tree::ErgoTreeError;
 
 use derive_more::From;
+use secp256k1::Error;
 use thiserror::Error;
 
 /// Errors on proof verification
@@ -40,6 +41,9 @@ pub enum VerifierError {
     /// Error while tree serialization for Fiat-Shamir hash
     #[error("Fiat-Shamir tree serialization error: {0}")]
     FiatShamirTreeSerializationError(FiatShamirTreeSerializationError),
+    /// Error while computing commitments
+    #[error("ComputeCommitmentsError: {0}")]
+    ComputeCommitmentsError(Error),
 }
 
 /// Result of Box.ergoTree verification procedure (see `verify` method).
@@ -115,7 +119,7 @@ pub fn verify_signature(
 /// Perform Verifier Steps 4-6
 fn check_commitments(sp: UncheckedTree, message: &[u8]) -> Result<bool, VerifierError> {
     // Perform Verifier Step 4
-    let new_root = compute_commitments(sp);
+    let new_root = compute_commitments(sp).map_err(VerifierError::ComputeCommitmentsError)?;
     let mut s = fiat_shamir_tree_to_bytes(&new_root.clone().into())?;
     s.append(&mut message.to_vec());
     // Verifier Steps 5-6: Convert the tree to a string `s` for input to the Fiat-Shamir hash function,
@@ -129,7 +133,7 @@ fn check_commitments(sp: UncheckedTree, message: &[u8]) -> Result<bool, Verifier
 /// Verifier Step 4: For every leaf node, compute the commitment a from the challenge e and response $z$,
 /// per the verifier algorithm of the leaf's Sigma-protocol.
 /// If the verifier algorithm of the Sigma-protocol for any of the leaves rejects, then reject the entire proof.
-pub fn compute_commitments(sp: UncheckedTree) -> UncheckedTree {
+pub fn compute_commitments(sp: UncheckedTree) -> Result<UncheckedTree, Error> {
     match sp {
         UncheckedTree::UncheckedLeaf(leaf) => match leaf {
             UncheckedLeaf::UncheckedSchnorr(sn) => {
@@ -137,30 +141,33 @@ pub fn compute_commitments(sp: UncheckedTree) -> UncheckedTree {
                     &sn.proposition,
                     &sn.challenge,
                     &sn.second_message,
-                );
-                UncheckedSchnorr {
+                )?;
+                Ok(UncheckedSchnorr {
                     commitment_opt: Some(FirstDlogProverMessage { a: a.into() }),
                     ..sn
                 }
-                .into()
+                .into())
             }
             UncheckedLeaf::UncheckedDhTuple(dh) => {
                 let (a, b) = dht_protocol::interactive_prover::compute_commitment(
                     &dh.proposition,
                     &dh.challenge,
                     &dh.second_message,
-                );
-                UncheckedDhTuple {
+                )?;
+                Ok(UncheckedDhTuple {
                     commitment_opt: Some(FirstDhTupleProverMessage::new(a, b)),
                     ..dh
                 }
-                .into()
+                .into())
             }
         },
-        UncheckedTree::UncheckedConjecture(conj) => conj
-            .clone()
-            .with_children(conj.children_ust().mapped(compute_commitments))
-            .into(),
+        UncheckedTree::UncheckedConjecture(conj) => {
+            let s = conj
+                .clone()
+                .children_ust()
+                .try_mapped(compute_commitments)?;
+            Ok(conj.clone().with_children(s).into())
+        }
     }
 }
 
